@@ -1,63 +1,46 @@
-import 'dart:convert';
-
-import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import 'package:ticketbooking/controller/app_controller.dart';
 import 'package:ticketbooking/models/adminmodel.dart';
-
 import 'package:ticketbooking/pages/color.dart';
-import 'package:ticketbooking/pages/loadingdialoge.dart';
-import 'package:ticketbooking/utils/urlpage.dart';
 
 // ignore: must_be_immutable
-class admindetails extends StatefulWidget {
-  Admin admin;
+class admindetails extends StatelessWidget {
+  final Admin admin;
   admindetails(this.admin, {super.key});
 
-  @override
-  State<admindetails> createState() => _admindetailsState(admin);
-}
+  final AppController controller = Get.find<AppController>();
+  final GlobalKey<FormState> formkey = GlobalKey();
 
-class _admindetailsState extends State<admindetails> {
-  late SharedPreferences sp;
-  Admin admin;
-  _admindetailsState(this.admin);
-  TextEditingController adminnamecontroller = TextEditingController();
-  TextEditingController adminphonecontroller = TextEditingController();
-  TextEditingController adminemailcontroller = TextEditingController();
-  TextEditingController adminpasscodecontroller = TextEditingController();
-  TextEditingController adminconfirmpasscodecontroller =
-      TextEditingController();
-  String passcode = '';
-  String ConfirmPasscode = '';
-  @override
-  void initState() {
-    super.initState();
-    adminnamecontroller.text = admin.name;
-    adminphonecontroller.text = admin.phone;
-    adminemailcontroller.text = admin.email;
-    adminpasscodecontroller.text = admin.passcode;
-    adminconfirmpasscodecontroller.text = admin.passcode;
-  }
+  // Observable booleans for enabling editing
+  final RxBool nameEnabled = false.obs;
+  final RxBool phoneEnabled = false.obs;
+  final RxBool emailEnabled = false.obs;
+  final RxBool passcodeEnabled = false.obs;
 
-  GlobalKey<FormState> formkey = GlobalKey();
-
-  bool nametype = false;
-  bool phonetype = false;
-  bool emailtype = false;
-  bool passcodetype = false;
   @override
   Widget build(BuildContext context) {
+    // Initialize controllers with current admin data
+    final TextEditingController adminnamecontroller = TextEditingController(
+      text: admin.name,
+    );
+    final TextEditingController adminphonecontroller = TextEditingController(
+      text: admin.phone,
+    );
+    final TextEditingController adminemailcontroller = TextEditingController(
+      text: admin.email,
+    );
+    final TextEditingController adminpasscodecontroller = TextEditingController(
+      text: admin.passcode,
+    );
+    final TextEditingController adminconfirmpasscodecontroller =
+        TextEditingController(text: admin.passcode);
+
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: C.textfromcolor,
-            ),
+            icon: Icon(Icons.arrow_back, color: C.textfromcolor),
             onPressed: () {
               Navigator.pop(context);
             },
@@ -79,7 +62,10 @@ class _admindetailsState extends State<admindetails> {
                     children: [
                       Container(
                         padding: const EdgeInsets.only(
-                            top: 255, left: 20, right: 20),
+                          top: 255,
+                          left: 20,
+                          right: 20,
+                        ),
                         decoration: const BoxDecoration(
                           color: Color.fromARGB(255, 233, 230, 230),
                         ),
@@ -97,9 +83,12 @@ class _admindetailsState extends State<admindetails> {
                                 borderRadius: BorderRadius.circular(15),
                                 boxShadow: [
                                   BoxShadow(
-                                    color:
-                                        const Color.fromARGB(255, 105, 105, 105)
-                                            .withOpacity(0.5),
+                                    color: const Color.fromARGB(
+                                      255,
+                                      105,
+                                      105,
+                                      105,
+                                    ).withOpacity(0.5),
                                     spreadRadius: 3,
                                     blurRadius: 5,
                                     offset: const Offset(2, 2),
@@ -108,396 +97,81 @@ class _admindetailsState extends State<admindetails> {
                               ),
                               child: Column(
                                 children: [
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 178),
-                                    width: 100,
-                                    child: const Text(
-                                      "User name",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          fontSize: 15, color: Colors.white),
-                                    ),
+                                  // Name Field
+                                  _buildLabel("User name"),
+                                  _buildField(
+                                    controller: adminnamecontroller,
+                                    enabled: nameEnabled,
+                                    icon: Icons.person_2_sharp,
+                                    validator: (value) => value!.isEmpty
+                                        ? 'Cannot be blank!'
+                                        : null,
                                   ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 250,
-                                        padding:
-                                            const EdgeInsets.only(bottom: 5),
-                                        child: TextFormField(
-                                          enabled: nametype,
-                                          style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                          controller: adminnamecontroller,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return 'Cannot left Blank!';
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          autovalidateMode: AutovalidateMode
-                                              .onUserInteraction,
-                                          keyboardType: TextInputType.name,
-                                          decoration: const InputDecoration(
-                                            fillColor: Color.fromARGB(
-                                                0, 255, 255, 255),
-                                            filled: true,
-                                            prefixIcon: Icon(
-                                              Icons.person_2_sharp,
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                            ),
-                                            enabledBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            focusedBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            nametype = !nametype;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+
+                                  // Phone Field
+                                  _buildLabel("Phone no."),
+                                  _buildField(
+                                    controller: adminphonecontroller,
+                                    enabled: phoneEnabled,
+                                    icon: Icons.phone_android,
+                                    validator: (value) => value!.isEmpty
+                                        ? 'Cannot be blank!'
+                                        : null,
                                   ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 178),
-                                    width: 100,
-                                    child: const Text(
-                                      "Phone no.",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          fontSize: 15, color: Colors.white),
-                                    ),
+
+                                  // Email Field
+                                  _buildLabel("E-mail"),
+                                  _buildField(
+                                    controller: adminemailcontroller,
+                                    enabled: emailEnabled,
+                                    icon: Icons.email,
+                                    validator: (value) {
+                                      if (value!.isEmpty)
+                                        return 'Cannot be blank!';
+                                      if (!GetUtils.isEmail(value))
+                                        return 'Enter valid email';
+                                      return null;
+                                    },
                                   ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 250,
-                                        padding:
-                                            const EdgeInsets.only(bottom: 5),
-                                        child: TextFormField(
-                                          enabled: phonetype,
-                                          style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                          controller: adminphonecontroller,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return 'Cannot left Blank!';
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          autovalidateMode: AutovalidateMode
-                                              .onUserInteraction,
-                                          keyboardType: TextInputType.name,
-                                          decoration: const InputDecoration(
-                                            fillColor: Color.fromARGB(
-                                                0, 255, 255, 255),
-                                            filled: true,
-                                            prefixIcon: Icon(
-                                              Icons.phone_android,
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                            ),
-                                            enabledBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            focusedBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            phonetype = !phonetype;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+
+                                  // Passcode Field
+                                  _buildLabel("Passcode"),
+                                  _buildField(
+                                    controller: adminpasscodecontroller,
+                                    enabled: passcodeEnabled,
+                                    icon: Icons.lock,
+                                    validator: (value) {
+                                      if (value == null || value.trim().isEmpty)
+                                        return 'Password Required!';
+                                      if (value.trim().length <= 3)
+                                        return "At least 4 numbers";
+                                      return null;
+                                    },
+                                    inputType: TextInputType.number,
                                   ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 178),
-                                    width: 100,
-                                    child: const Text(
-                                      "E-mail",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          fontSize: 15, color: Colors.white),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 250,
-                                        padding:
-                                            const EdgeInsets.only(bottom: 5),
-                                        child: TextFormField(
-                                          enabled: emailtype,
-                                          style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                          controller: adminemailcontroller,
-                                          validator: (value) {
-                                            if (value!.isEmpty) {
-                                              return 'Cannot left Blank!';
-                                            } else if (!RegExp(
-                                                    r'[^0-9]+[a-zA-Z0-9]+@+gmail+\.+com')
-                                                .hasMatch(value)) {
-                                              return 'Please enter Valide email id';
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          autovalidateMode: AutovalidateMode
-                                              .onUserInteraction,
-                                          keyboardType: TextInputType.name,
-                                          decoration: const InputDecoration(
-                                            fillColor: Color.fromARGB(
-                                                0, 255, 255, 255),
-                                            filled: true,
-                                            prefixIcon: Icon(
-                                              Icons.email,
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                            ),
-                                            enabledBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            focusedBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            emailtype = !emailtype;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 178),
-                                    width: 100,
-                                    child: const Text(
-                                      "Passcode",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          fontSize: 15, color: Colors.white),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 250,
-                                        padding:
-                                            const EdgeInsets.only(bottom: 5),
-                                        child: TextFormField(
-                                          enabled: passcodetype,
-                                          style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                          controller: adminpasscodecontroller,
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.trim().isEmpty) {
-                                              return ' Password Requried!';
-                                            } else if (value.trim().length <=
-                                                3) {
-                                              return "Contains atleast 4 numbers";
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          onChanged: (value) =>
-                                              passcode = value,
-                                          autovalidateMode: AutovalidateMode
-                                              .onUserInteraction,
-                                          keyboardType: TextInputType.number,
-                                          decoration: const InputDecoration(
-                                            fillColor: Color.fromARGB(
-                                                0, 255, 255, 255),
-                                            filled: true,
-                                            prefixIcon: Icon(
-                                              Icons.lock,
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                            ),
-                                            enabledBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            focusedBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            passcodetype = !passcodetype;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 125),
-                                    width: 150,
-                                    child: const Text(
-                                      "Confirm passcode",
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          fontSize: 15, color: Colors.white),
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 250,
-                                        padding:
-                                            const EdgeInsets.only(bottom: 0),
-                                        child: TextFormField(
-                                          enabled: passcodetype,
-                                          style: const TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 20),
-                                          controller:
-                                              adminconfirmpasscodecontroller,
-                                          validator: (value) {
-                                            if (value == null ||
-                                                value.isEmpty) {
-                                              return 'field required';
-                                            } else if (value !=
-                                                adminpasscodecontroller.text) {
-                                              return 'Confimation password does not match';
-                                            } else {
-                                              return null;
-                                            }
-                                          },
-                                          onChanged: (value) =>
-                                              ConfirmPasscode = value,
-                                          autovalidateMode: AutovalidateMode
-                                              .onUserInteraction,
-                                          keyboardType: TextInputType.number,
-                                          decoration: const InputDecoration(
-                                            fillColor: Color.fromARGB(
-                                                0, 255, 255, 255),
-                                            filled: true,
-                                            prefixIcon: Icon(
-                                              Icons.mobile_friendly,
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                            ),
-                                            enabledBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                            focusedBorder: UnderlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                                width: 3,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            passcodetype = !passcodetype;
-                                          });
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
+
+                                  // Confirm Passcode Field
+                                  _buildLabel("Confirm passcode"),
+                                  _buildField(
+                                    controller: adminconfirmpasscodecontroller,
+                                    enabled: passcodeEnabled,
+                                    icon: Icons.mobile_friendly,
+                                    validator: (value) {
+                                      if (value == null || value.isEmpty)
+                                        return 'Field required';
+                                      if (value != adminpasscodecontroller.text)
+                                        return 'Passwords do not match';
+                                      return null;
+                                    },
+                                    inputType: TextInputType.number,
+                                    showEditButton:
+                                        false, // No edit button needed here as it shares state with passcode
                                   ),
                                 ],
                               ),
                             ),
+
+                            // Update Button
                             Container(
                               margin: const EdgeInsets.only(top: 20),
                               width: 140,
@@ -505,44 +179,49 @@ class _admindetailsState extends State<admindetails> {
                               decoration: BoxDecoration(
                                 color: C.theamecolor,
                                 borderRadius: const BorderRadius.horizontal(
-                                    left: Radius.circular(15),
-                                    right: Radius.circular(15)),
-                              ),
-                              child: TextButton(
-                                child: Text(
-                                  "UPDATE",
-                                  style: TextStyle(
-                                      color: C.textfromcolor,
-                                      fontFamily: "mogra",
-                                      fontSize: 29),
+                                  left: Radius.circular(15),
+                                  right: Radius.circular(15),
                                 ),
-                                onPressed: () {
-                                  if (formkey.currentState!.validate()) {
-                                    adminupdate(
-                                            admin.regno,
-                                            adminnamecontroller.text,
-                                            adminphonecontroller.text,
-                                            adminemailcontroller.text,
-                                            adminpasscodecontroller.text)
-                                        .whenComplete(() {
-                                      Navigator.of(context).pop();
-                                    });
-                                  } else {
-                                    Fluttertoast.showToast(
-                                        msg: "Please Enter required feilds");
-                                  }
-                                },
                               ),
-                            )
+                              child: Obx(
+                                () => TextButton(
+                                  child: controller.isLoading.value
+                                      ? const CircularProgressIndicator(
+                                          color: Colors.white,
+                                        )
+                                      : Text(
+                                          "UPDATE",
+                                          style: TextStyle(
+                                            color: C.textfromcolor,
+                                            fontFamily: "mogra",
+                                            fontSize: 29,
+                                          ),
+                                        ),
+                                  onPressed: () {
+                                    if (controller.isLoading.value) return;
+
+                                    if (formkey.currentState!.validate()) {
+                                      controller.updateAdminProfile(
+                                        name: adminnamecontroller.text,
+                                        phone: adminphonecontroller.text,
+                                        email: adminemailcontroller.text,
+                                        passcode: adminpasscodecontroller.text,
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
+
+                      // Bus Image Header
                       Container(
                         height: 200,
                         decoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(color: C.theamecolor, width: 5),
-                            // left: BorderSide(),
                             right: const BorderSide(),
                           ),
                           color: C.theamecolor,
@@ -553,13 +232,15 @@ class _admindetailsState extends State<admindetails> {
                           fit: BoxFit.fill,
                         ),
                       ),
+
+                      // Avatar
                       Positioned(
                         top: 120,
                         left: 130,
                         child: CircleAvatar(
                           backgroundColor: C.theamecolor,
                           radius: 65,
-                          child: CircleAvatar(
+                          child: const CircleAvatar(
                             backgroundImage: AssetImage(
                               "asset/image/bus48.jpg",
                             ),
@@ -579,58 +260,82 @@ class _admindetailsState extends State<admindetails> {
     );
   }
 
-  Future<void> adminupdate(
-    String regno,
-    String name,
-    String phone,
-    String email,
-    String passcode,
-  ) async {
-    Map data = {
-      "regno": regno,
-      "name": name,
-      "phone": phone,
-      "email": email,
-      "passcode": passcode
-    };
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const LoadingDialog();
-      },
+  Widget _buildLabel(String text) {
+    return Container(
+      margin: const EdgeInsets.only(
+        right: 178,
+      ), // Keeping original layout roughly
+      width: 150, // Adjusted width
+      child: Text(
+        text,
+        textAlign: TextAlign.left,
+        style: const TextStyle(fontSize: 15, color: Colors.white),
+      ),
     );
-    try {
-      var response = await http
-          .post(Uri.parse("${MyUrl.fullurl}admin_update.php"), body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        sp = await SharedPreferences.getInstance();
-        admin.name = adminnamecontroller.text;
-        admin.phone = adminphonecontroller.text;
-        admin.phone = adminphonecontroller.text;
-        admin.passcode = adminpasscodecontroller.text;
-        sp.setString('adminname', admin.name);
-        sp.setString('adminphone', admin.phone);
-        sp.setString('adminemail', admin.email);
-        sp.setString('adminpasscode', admin.passcode);
-        setState(() {});
-        Navigator.pop(context);
+  }
 
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      } else {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
+  Widget _buildField({
+    required TextEditingController controller,
+    required RxBool enabled,
+    required IconData icon,
+    String? Function(String?)? validator,
+    TextInputType inputType = TextInputType.name,
+    bool showEditButton = true,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 250,
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Obx(
+            () => TextFormField(
+              enabled: enabled.value,
+              style: const TextStyle(
+                color: Color.fromARGB(255, 255, 255, 255),
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+              controller: controller,
+              validator: validator,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              keyboardType: inputType,
+              decoration: InputDecoration(
+                fillColor: const Color.fromARGB(0, 255, 255, 255),
+                filled: true,
+                prefixIcon: Icon(
+                  icon,
+                  color: const Color.fromARGB(255, 255, 255, 255),
+                ),
+                enabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    width: 3,
+                  ),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Color.fromARGB(255, 255, 255, 255),
+                    width: 3,
+                  ),
+                ),
+                disabledBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white70, width: 1),
+                ),
+              ),
+            ),
+          ),
+        ),
+        if (showEditButton)
+          IconButton(
+            onPressed: () {
+              enabled.value = !enabled.value;
+            },
+            icon: const Icon(Icons.edit, color: Colors.white),
+          )
+        else
+          const SizedBox(width: 48), // Spacer to keep alignment
+      ],
+    );
   }
 }

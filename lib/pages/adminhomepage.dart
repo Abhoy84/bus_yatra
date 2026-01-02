@@ -1,17 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ticketbooking/models/seatmodel.dart';
+import 'package:ticketbooking/controller/app_controller.dart';
+
 import 'package:ticketbooking/pages/adminbookingdetails.dart';
 import 'package:ticketbooking/pages/adminseat.dart';
 import 'package:ticketbooking/pages/busdetails.dart';
 import 'package:ticketbooking/pages/color.dart';
 import 'package:ticketbooking/models/adminmodel.dart';
 import 'package:ticketbooking/pages/admindetails.dart';
-import 'package:ticketbooking/pages/loadingdialoge.dart';
+
 import 'package:ticketbooking/pages/login.dart';
-import 'package:ticketbooking/pages/seatinfo.dart';
 
 // ignore: must_be_immutable
 class adminhome extends StatefulWidget {
@@ -406,40 +407,41 @@ class _adminhomeState extends State<adminhome> {
     String pid,
     String updepot,
   ) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const LoadingDialog();
-      },
-    );
+    // Ideally we pass busId (uid) here. Assuming 'regno' might be used or we need the actual document ID.
+    // NOTE: In AdminLogin, we fetched the doc by UID. We should probably pass UID.
+    // However, looking at AdminLogin, it seems 'regno' is NOT the uid.
+    // BUT, the document was fetched with `uid`.
+    // The previous implementation used 'regno' for PHP.
+    // For Firestore, we need the DOCUMENT ID (which is the User UID).
+    // The Admin object doesn't seem to store the raw UID...
+    // Wait, in AdminLogin: `String uid = userCredential.user!.uid;` -> `doc(uid).get()`.
+    // The logic creates the document with the SAME UID.
+    // BUT the Admin object passed to this page doesn't have a 'uid' field.
+    // I NEED TO PASS THE UID.
+    // For now, I will assume the user is logged in via Firebase Auth, so I can get the UID from there!
+
     try {
-      // Migration: Simplified logic to open seat selection.
-      // In a full implementation, you would fetch seat layout from Firestore.
-      // Using defaults for now (Row: 10, Col: 4).
-      Seat seat = Seat(
-        row: "10",
-        column: "4",
-        inactive: "",
-        userslected: "none",
-        totalreserved: "none",
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Fluttertoast.showToast(msg: "Error: Not logged in");
+        return;
+      }
+      String busId = user.uid;
+
+      // Get Controller
+      final AppController controller = Get.put(AppController());
+
+      // Load Data
+      await controller.loadSeatLayout(busId);
+
+      // Navigate
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AdminSeatSelection(busId: busId),
+        ),
       );
-
-      sp = await SharedPreferences.getInstance();
-      sp.setString('seatrow', "10");
-      sp.setString('seatcolumn', "4");
-      sp.setString("inactive", "");
-      // Clearing other params or setting defaults
-      sp.setString("userselected", "none");
-      sp.setString("totalreserved", "none");
-
-      Navigator.pop(context);
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (context) => adminseatselection(seat)));
     } catch (e) {
-      Navigator.pop(context);
-      Fluttertoast.showToast(msg: e.toString());
+      Fluttertoast.showToast(msg: "Error: $e");
     }
   }
 }
