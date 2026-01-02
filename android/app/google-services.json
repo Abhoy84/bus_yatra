@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "995628758510",
+    "project_id": "busyatra-2308a",
+    "storage_bucket": "busyatra-2308a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:995628758510:android:076b9dc5305f462e024aff",
+        "android_client_info": {
+          "package_name": "com.example.bus_yatra"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjND4XiVqPUDc7rUK4D3YCkt13I1aB83E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

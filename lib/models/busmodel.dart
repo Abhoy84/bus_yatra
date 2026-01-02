@@ -1,0 +1,29 @@
+class Bus {
+  String Bus_name,
+      Reg_no,
+      Seat_no,
+      Type,
+      Up_depot,
+      Up_time,
+      Up_travel_time,
+      Down_depot,
+      Down_time,
+      Down_travel_time,
+      Status,
+      Ticket_price,
+      Bus_image;
+  Bus(
+      this.Bus_name,
+      this.Reg_no,
+      this.Seat_no,
+      this.Type,
+      this.Up_depot,
+      this.Up_time,
+      this.Up_travel_time,
+      this.Down_depot,
+      this.Down_time,
+      this.Down_travel_time,
+      this.Status,
+      this.Ticket_price,
+      this.Bus_image);
+}
