@@ -61,7 +61,7 @@ class AdminloginState extends State<Adminlogin> {
           passcode: password,
           busname: data['busname'] ?? '',
           regno: data['regno'] ?? '',
-          seatno: data['seatno'] ?? '',
+          seatno: data['seatno'].toString(),
           type: data['type'] ?? '',
           updepot: data['updepot'] ?? '',
           uptime: data['uptime'] ?? '',
@@ -72,6 +72,7 @@ class AdminloginState extends State<Adminlogin> {
           status: data['busstatus'] ?? 'active',
           ticketprice: data['ticketprice'] ?? '',
           busimage: data['busimage'] ?? '',
+          statusReason: data['statusReason'] ?? '',
         );
 
         sp = await SharedPreferences.getInstance();
@@ -124,7 +125,7 @@ class AdminloginState extends State<Adminlogin> {
         appBar: AppBar(
           title: const Text("Admin Login"),
           centerTitle: true,
-          automaticallyImplyLeading: false,
+          automaticallyImplyLeading: true,
         ),
         body: SingleChildScrollView(
           child: Form(

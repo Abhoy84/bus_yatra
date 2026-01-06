@@ -1,10 +1,7 @@
-import 'dart:convert';
-// import 'dart:html';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ticketbooking/pages/color.dart';
 import 'package:ticketbooking/pages/firstticket.dart';
@@ -13,7 +10,6 @@ import 'package:ticketbooking/pages/homepage.dart';
 import 'package:ticketbooking/pages/loadingdialog.dart';
 import 'package:ticketbooking/pages/loadingdialoge.dart';
 import 'package:ticketbooking/pages/seatselection.dart';
-import 'package:ticketbooking/utils/urlpage.dart';
 
 class ticketcreator extends StatefulWidget {
   const ticketcreator({super.key});
@@ -26,17 +22,11 @@ class _ticketcreatorState extends State<ticketcreator> {
   @override
   void initState() {
     setvalue().whenComplete(() {
-      showBeautifulLoadingDialog(context).whenComplete(() => setState(() {
-            ticketdetailsInsert(
-                buslistpageState.time,
-                seatselectionState.orderid,
-                buslistpageState.From,
-                buslistpageState.To,
-                seatselectionState.total_amount.toString(),
-                buslistpageState.busname,
-                username,
-                buslistpageState.reg);
-          }));
+      showBeautifulLoadingDialog(context).whenComplete(
+        () => setState(() {
+          ticketdetailsInsert(seatselectionState.orderid);
+        }),
+      );
     });
     // TODO: implement initState
     super.initState();
@@ -57,7 +47,8 @@ class _ticketcreatorState extends State<ticketcreator> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (builder) => const buslistpage()));
+              MaterialPageRoute(builder: (builder) => const buslistpage()),
+            );
           },
         ),
         title: const Text("Ticket creation"),
@@ -85,7 +76,7 @@ class _ticketcreatorState extends State<ticketcreator> {
                 colors: [
                   Color.fromARGB(255, 4, 18, 63),
                   Color.fromARGB(255, 12, 50, 150),
-                  Color.fromARGB(255, 19, 93, 239)
+                  Color.fromARGB(255, 19, 93, 239),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -117,48 +108,35 @@ class _ticketcreatorState extends State<ticketcreator> {
   }
   // cvdd
 
-  Future ticketdetailsInsert(
-      String time,
-      String orderid,
-      String from,
-      String to,
-      String amount,
-      String busname,
-      String username,
-      String busid) async {
-    Map data = {
-      'orderid': orderid,
-      'from': from,
-      'to': to,
-      'time': time,
-      'amount': amount,
-      'busname': busname,
-      'username': username,
-      'busid': busid
-    };
-
+  Future ticketdetailsInsert(String orderid) async {
     showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          return const LoadingDialog();
-        });
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const LoadingDialog();
+      },
+    );
     try {
-      var respond = await http
-          .post(Uri.parse("${MyUrl.fullurl}ticket_insert.php"), body: data);
-      var jsondata = jsonDecode(respond.body);
-      if (jsondata['status'] == true) {
-        Navigator.pop(context);
-        Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (builder) => const ticketafter()));
-        Fluttertoast.showToast(msg: jsondata['msg']);
-      } else {
-        Navigator.pop(context);
-        Fluttertoast.showToast(msg: jsondata['msg']);
-      }
+      // Confirm the booking
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(orderid)
+          .update({'status': 'confirmed'});
+
+      Navigator.pop(context); // Close loading
+
+      // Navigate to Ticket View
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (builder) =>
+              ticketafter(orderId: orderid, isFromBooking: true),
+        ),
+      );
+
+      Fluttertoast.showToast(msg: "Ticket Generated Successfully!");
     } catch (e) {
       Navigator.pop(context);
-      Fluttertoast.showToast(msg: e.toString());
+      Fluttertoast.showToast(msg: "Failed to generate ticket: $e");
     }
   }
 
@@ -182,10 +160,6 @@ class _ticketcreatorState extends State<ticketcreator> {
     username = sp.getString("fname")!;
   }
 }
-
-
-
-
 
 // void main() {
 //   final str = "22/10/2003";

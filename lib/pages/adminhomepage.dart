@@ -1,12 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ticketbooking/controller/app_controller.dart';
 
 import 'package:ticketbooking/pages/adminbookingdetails.dart';
-import 'package:ticketbooking/pages/adminseat.dart';
+import 'package:ticketbooking/pages/manageSeat.dart';
 import 'package:ticketbooking/pages/busdetails.dart';
 import 'package:ticketbooking/pages/color.dart';
 import 'package:ticketbooking/models/adminmodel.dart';
@@ -426,20 +424,12 @@ class _adminhomeState extends State<adminhome> {
         Fluttertoast.showToast(msg: "Error: Not logged in");
         return;
       }
-      String busId = user.uid;
-
-      // Get Controller
-      final AppController controller = Get.put(AppController());
-
-      // Load Data
-      await controller.loadSeatLayout(busId);
+      // String busId = user.uid; // verify logic if needed
 
       // Navigate
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => AdminSeatSelection(busId: busId),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (context) => const manageSeat()));
     } catch (e) {
       Fluttertoast.showToast(msg: "Error: $e");
     }

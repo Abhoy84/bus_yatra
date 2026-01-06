@@ -6,8 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ticketbooking/models/busmodel.dart';
 import 'package:ticketbooking/models/usermodel.dart';
 import 'package:ticketbooking/pages/Navbar.dart';
+import 'package:ticketbooking/pages/account.dart';
+import 'package:ticketbooking/pages/alltickets.dart';
 import 'package:ticketbooking/pages/buslist.dart';
 import 'package:ticketbooking/pages/color.dart';
+import 'package:ticketbooking/utils/urlpage.dart';
 import 'package:intl/intl.dart';
 
 // ignore: must_be_immutable
@@ -34,11 +37,7 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
   ];
   List<String> items = [];
   List<String> filteredItems = [];
-  bool updepotshowList = false;
-  bool downdepotshowList = false;
-  // final carousel_slider.CarouselSliderController carouselController =
-  //     carousel_slider.CarouselSliderController();
-  int currentIndex = 0;
+
   List<Bus> buslist = [];
   late AnimationController _controller;
   List<String> Depotlist = [];
@@ -51,6 +50,27 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
 
   TextEditingController updepotsearchController = TextEditingController();
   TextEditingController downdepotsearchController = TextEditingController();
+
+  // Keys to force rebuild of Autocomplete widgets on swap
+  Key keyUp = UniqueKey();
+  Key keyDown = UniqueKey();
+
+  void _swapLocations() {
+    if (updepotsearchController.text.isEmpty &&
+        downdepotsearchController.text.isEmpty)
+      return;
+
+    setState(() {
+      String temp = updepotsearchController.text;
+      updepotsearchController.text = downdepotsearchController.text;
+      downdepotsearchController.text = temp;
+
+      // Force rebuild to update initialValue
+      keyUp = UniqueKey();
+      keyDown = UniqueKey();
+    });
+  }
+
   @override
   void initState() {
     swaping();
@@ -69,39 +89,41 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
     showdate = "  ${DateFormat('yMd').format(currentdate)}";
   }
 
-  void _filterItems(String query) {
-    query = query.toLowerCase();
-    setState(() {
-      filterDepotlist = Depotlist.where(
-        (item) => item.toLowerCase().contains(query),
-      ).toList();
-    });
-  }
-
   Future getdepot() async {
     try {
+      // Query the 'buses' collection instead of 'depots'
       QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('depots')
+          .collection('buses')
           .get();
 
       if (snapshot.docs.isNotEmpty) {
         Depotlist.clear();
         Depotidlist.clear();
+        Set<String> uniqueDepots = {};
 
         for (var doc in snapshot.docs) {
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-          String name = data['depot_name'] ?? '';
-          // Use doc.id as depot_id if not present, or valid field.
-          // Existing code expects int ID, but list is String.
-          // Storing doc ID as String in Depotidlist.
+          // Extract both Up and Down depots
+          String up = data['updepot'] ?? '';
+          String down = data['downdepot'] ?? '';
 
-          Depotlist.add(name.toLowerCase());
-          Depotidlist.add(doc.id);
+          if (up.isNotEmpty) uniqueDepots.add(up);
+          if (down.isNotEmpty) uniqueDepots.add(down);
         }
+
+        // Convert Set to List and sort
+        Depotlist = uniqueDepots.toList()..sort();
+
+        // Populate Depotidlist with dummy data to maintain list length sync if needed (legacy)
+        // or just ignore it if unused. For safety, matching length.
+        for (var _ in Depotlist) {
+          Depotidlist.add('bus_derived_id');
+        }
+
         filterDepotlist = Depotlist;
         setState(() {});
       } else {
-        // Fallback or empty state
+        Depotlist.clear();
       }
     } catch (e) {
       Fluttertoast.showToast(msg: e.toString());
@@ -124,242 +146,302 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FA), // Very light cool grey
         drawer: Navbar(user),
-        appBar: AppBar(
-          iconTheme: IconThemeData(color: C.textfromcolor),
-          backgroundColor: C.theamecolor,
-          title: Text("WELCOME", style: TextStyle(color: C.textfromcolor)),
-          centerTitle: true,
-        ),
         body: SingleChildScrollView(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. HEADER SECTION
               Stack(
                 children: [
-                  Form(
-                    key: formkey,
+                  Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: C.theamecolor,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 20,
+                      bottom: 20,
+                    ),
                     child: Column(
                       children: [
-                        Container(
-                          margin: EdgeInsets.only(top: 30),
-                          height: 70,
-                          width: 350,
-                          padding: EdgeInsets.only(left: 0, top: 2),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Color.fromARGB(255, 0, 0, 0),
-                              width: 1,
-                            ),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(20),
-                              topRight: Radius.circular(20),
-                            ),
-                          ),
-                          child: Autocomplete(
-                            // initialValue: updepotsearchController.value,
-                            fieldViewBuilder:
-                                ((
-                                  context,
-                                  updepotsearchController,
-                                  focusNode,
-                                  onEditingComplete,
-                                ) {
-                                  return TextFormField(
-                                    onTap: () {},
-                                    validator: (value) {
-                                      if (value!.isEmpty) {
-                                        return "select the pickup location";
-                                      } else {
-                                        return null;
-                                      }
-                                    },
-                                    // expands: true,
-                                    textInputAction: TextInputAction.next,
-                                    autovalidateMode:
-                                        AutovalidateMode.onUserInteraction,
-                                    controller: updepotsearchController,
-                                    focusNode: focusNode,
-                                    onEditingComplete: onEditingComplete,
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      fillColor: Colors.transparent,
-                                      filled: true,
-                                      hintText: "From",
-                                      hintStyle: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                      ),
-                                      prefixIcon: const Icon(
-                                        Icons.directions_bus_filled,
-                                        color: Color.fromARGB(255, 0, 0, 0),
-                                        size: 30,
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color.fromARGB(0, 210, 22, 22),
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color.fromARGB(0, 231, 27, 27),
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    style: TextStyle(
-                                      color: Color.fromARGB(255, 0, 0, 0),
-                                    ),
-                                  );
-                                }),
-
-                            optionsBuilder:
-                                (TextEditingValue textEditingValue) {
-                                  if (textEditingValue.text == '') {
-                                    return Iterable<String>.empty();
-                                  }
-                                  return Depotlist.where((String item) {
-                                    return item.contains(textEditingValue.text);
-                                  });
-                                },
-
-                            onSelected: (String item) {
-                              updepotsearchController.text = item;
-                            },
-                          ),
-                        ),
-                        Container(
-                          margin: EdgeInsets.only(),
-                          height: 70,
-                          width: 350,
-                          decoration: BoxDecoration(
-                            border: Border(
-                              left: BorderSide(color: Colors.black, width: 1),
-                              right: BorderSide(color: Colors.black, width: 1),
-                            ),
-                          ),
-                          child: Autocomplete(
-                            optionsBuilder:
-                                (TextEditingValue textEditingValue) {
-                                  if (textEditingValue == '') {
-                                    return Iterable<String>.empty();
-                                  }
-                                  return Depotlist.where((String item) {
-                                    return item.contains(textEditingValue.text);
-                                  });
-                                },
-                            onSelected: (String item) {
-                              downdepotsearchController.text = item;
-                            },
-                            fieldViewBuilder:
-                                ((
-                                  context,
-                                  downdepotsearchController,
-                                  focusNode,
-                                  onEditingComplete,
-                                ) {
-                                  return TextFormField(
-                                    validator: (value) {
-                                      if (value!.isEmpty) {
-                                        return "select destinetion!";
-                                      } else {
-                                        return null;
-                                      }
-                                    },
-                                    focusNode: focusNode,
-                                    onEditingComplete: onEditingComplete,
-                                    autovalidateMode:
-                                        AutovalidateMode.onUserInteraction,
-                                    controller: downdepotsearchController,
-                                    // onChanged: _filterItems,
-                                    decoration: InputDecoration(
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      contentPadding: EdgeInsets.only(
-                                        left: 20,
-                                        top: 30,
-                                      ),
-                                      fillColor: Colors.transparent,
-                                      filled: true,
-                                      hintText: "To",
-                                      hintStyle: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                      ),
-                                      prefixIcon: const Icon(
-                                        Icons.directions_bus_filled,
-                                        color: Color.fromARGB(255, 0, 0, 0),
-                                        size: 30,
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color.fromARGB(0, 210, 22, 22),
-                                        ),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(
-                                          color: Color.fromARGB(0, 231, 27, 27),
-                                          width: 2,
-                                        ),
-                                      ),
-                                    ),
-                                    style: TextStyle(
-                                      color: Color.fromARGB(255, 0, 0, 0),
-                                    ),
-                                  );
-                                }),
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () async {
-                            DateTime? pickdate = await showDatePicker(
-                              context: context,
-                              initialDate: DateTime.now(),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2050),
-                            );
-                            if (pickdate != null) {
-                              viewdate =
-                                  "  ${DateFormat('yMMMd').format(pickdate)}";
-                              showdate =
-                                  "${DateFormat('yMd').format(pickdate)}";
-                            } else {
-                              viewdate =
-                                  "  ${DateFormat('yMMMEd').format(currentdate)}";
-                              showdate =
-                                  "${DateFormat('yMd').format(currentdate)}";
-                            }
-                            setState(() {});
-                          },
-                          child: Container(
-                            padding: EdgeInsets.only(left: 10),
-                            height: 70,
-                            width: 350,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black, width: 1),
-                              borderRadius: BorderRadius.only(
-                                bottomLeft: Radius.circular(20),
-                                bottomRight: Radius.circular(20),
+                        // AppBar content manually placed for layout control
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Builder(
+                              builder: (context) => IconButton(
+                                icon: const Icon(
+                                  Icons.menu,
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                                onPressed: () =>
+                                    Scaffold.of(context).openDrawer(),
                               ),
                             ),
-                            child: Row(
+                            Row(
                               children: [
-                                Icon(Icons.calendar_month, size: 30),
-                                Text(
-                                  viewdate!,
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w400,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "Hello, ${user.fname.split(' ')[0]}",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Text(
+                                      "Ready to travel?",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundImage: NetworkImage(
+                                      MyUrl.fullurl +
+                                          MyUrl.imageurl +
+                                          user.image,
+                                    ),
+                                    onBackgroundImageError: (_, __) =>
+                                        const Icon(
+                                          Icons.person,
+                                          color: Colors.white,
+                                        ),
+                                    backgroundColor: Colors.white.withOpacity(
+                                      0.2,
+                                    ),
+                                    child: user.image.isEmpty
+                                        ? const Icon(
+                                            Icons.person,
+                                            size: 20,
+                                            color: Colors.white,
+                                          )
+                                        : null,
                                   ),
                                 ),
                               ],
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 30),
+                        // 2. SEARCH CARD
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.blueGrey.withOpacity(0.15),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              // Inputs Stack
+                              Stack(
+                                children: [
+                                  Column(
+                                    children: [
+                                      // FROM Field
+                                      _buildLocationInput(
+                                        controller: updepotsearchController,
+                                        hint: "From",
+                                        icon: Icons.my_location,
+                                        isUp: true,
+                                      ),
+                                      const SizedBox(height: 15),
+                                      // TO Field
+                                      _buildLocationInput(
+                                        controller: downdepotsearchController,
+                                        hint: "To",
+                                        icon: Icons.location_on,
+                                        isUp: false,
+                                      ),
+                                    ],
+                                  ),
+                                  // Floating Swap Button
+                                  Positioned(
+                                    right: 40,
+                                    top: 38, // Adjusted for spacing
+                                    child: InkWell(
+                                      onTap: _swapLocations,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.grey.withOpacity(
+                                                0.3,
+                                              ),
+                                              blurRadius: 5,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                          border: Border.all(
+                                            color: Colors.grey[100]!,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.swap_vert_rounded,
+                                          color: C.theamecolor,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 15),
+                              // Date Selection
+                              InkWell(
+                                onTap: () async {
+                                  DateTime? pickdate = await showDatePicker(
+                                    context: context,
+                                    initialDate: DateTime.now(),
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime(2050),
+                                  );
+                                  if (pickdate != null) {
+                                    setState(() {
+                                      viewdate =
+                                          "  ${DateFormat('yMMMEd').format(pickdate)}";
+                                      showdate =
+                                          "${DateFormat('yMd').format(pickdate)}";
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 15,
+                                    vertical: 15,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(
+                                      color: Colors.transparent,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.calendar_today_rounded,
+                                        color: Colors.grey[600],
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            "Journey Date",
+                                            style: TextStyle(
+                                              color: Colors.grey,
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                          Text(
+                                            viewdate?.trim() ?? "Select Date",
+                                            style: TextStyle(
+                                              color: Colors.grey[800],
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              // Search Button
+                              SizedBox(
+                                width: double.infinity,
+                                height: 50,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: C.theamecolor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    elevation: 8,
+                                    shadowColor: C.theamecolor.withOpacity(0.5),
+                                  ),
+                                  onPressed: () async {
+                                    if (formkey.currentState!.validate() ||
+                                        (updepotsearchController
+                                                .text
+                                                .isNotEmpty &&
+                                            downdepotsearchController
+                                                .text
+                                                .isNotEmpty)) {
+                                      sp =
+                                          await SharedPreferences.getInstance();
+                                      sp.setString(
+                                        'pickuppoint',
+                                        updepotsearchController.text,
+                                      );
+                                      sp.setString(
+                                        'destination',
+                                        downdepotsearchController.text,
+                                      );
+
+                                      setState(() {});
+
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const buslistpage(),
+                                        ),
+                                      );
+                                    } else {
+                                      Fluttertoast.showToast(
+                                        msg: "Please select both locations",
+                                      );
+                                    }
+                                  },
+                                  child: const Text(
+                                    'SEARCH BUSES',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -367,106 +449,121 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                   ),
                 ],
               ),
-              Container(
-                margin: const EdgeInsets.only(top: 20),
-                height: 60,
-                width: 380,
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-                child: ElevatedButton(
-                  // ignore: sort_child_properties_last
-                  child: const Text(
-                    'SEARCH BUS',
-                    style: TextStyle(
-                      fontSize: 23,
-                      color: Color.fromARGB(255, 255, 255, 255),
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: C.theamecolor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  onPressed: () async {
-                    if (formkey.currentState!.validate()) {
-                      sp = await SharedPreferences.getInstance();
-                      sp.setString('pickuppoint', updepotsearchController.text);
-                      sp.setString(
-                        'destination',
-                        downdepotsearchController.text,
-                      );
 
-                      setState(() {});
+              const SizedBox(height: 10),
 
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => buslistpage()),
-                      );
-                    }
-                  },
+              // 3. QUICK ACTIONS
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  "Quick Actions",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey[900],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildQuickActionCard(
+                      icon: Icons.confirmation_number_rounded,
+                      label: "My Tickets",
+                      color: Colors.blueAccent,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const alltickets(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      icon: Icons.person_rounded,
+                      label: "Profile",
+                      color: Colors.deepPurpleAccent,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => Account(user),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildQuickActionCard(
+                      icon: Icons.headset_mic_rounded,
+                      label: "Support",
+                      color: Colors.teal,
+                      onTap: () {
+                        Fluttertoast.showToast(msg: "Support coming soon!");
+                      },
+                    ),
+                  ],
                 ),
               ),
 
-              // Padding(
-              //   padding: const EdgeInsets.all(20),
-              //   child: Stack(
-              //     children: [
-              //       InkWell(
-              //         onTap: () {
-              //           print(currentIndex);
-              //         },
-              //         child: carousel_slider.CarouselSlider(
-              //           items: imageList
-              //               .map(
-              //                 (item) => Image.asset(
-              //                   item['image_path'],
-              //                   fit: BoxFit.cover,
-              //                   width: double.infinity,
-              //                 ),
-              //               )
-              //               .toList(),
-              //           carouselController: carouselController,
-              //           options: carousel_slider.CarouselOptions(
-              //             scrollPhysics: const BouncingScrollPhysics(),
-              //             autoPlay: true,
-              //             aspectRatio: 2,
-              //             viewportFraction: 1,
-              //             onPageChanged: (index, reason) {
-              //               setState(() {
-              //                 currentIndex = index;
-              //               });
-              //             },
-              //           ),
-              //         ),
-              //       ),
-              //       Positioned(
-              //         // top: 0,
-              //         bottom: 5,
-              //         left: 0,
-              //         right: 0,
-              //         child: Row(
-              //           mainAxisAlignment: MainAxisAlignment.center,
-              //           children: imageList.asMap().entries.map((entry) {
-              //             return GestureDetector(
-              //               onTap: () =>
-              //                   carouselController.animateToPage(entry.key),
-              //               child: Container(
-              //                 width: currentIndex == entry.key ? 20 : 10,
-              //                 height: 10,
-              //                 margin:
-              //                     const EdgeInsets.symmetric(horizontal: 3.0),
-              //                 decoration: BoxDecoration(
-              //                     borderRadius: BorderRadius.circular(10),
-              //                     color: currentIndex == entry.key
-              //                         ? Color.fromARGB(255, 251, 170, 30)
-              //                         : Colors.white),
-              //               ),
-              //             );
-              //           }).toList(),
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
+              const SizedBox(height: 25),
+
+              // 4. PROMO SECTION
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Special Offers",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueGrey[900],
+                      ),
+                    ),
+                    Text(
+                      "See All",
+                      style: TextStyle(
+                        color: C.theamecolor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                height: 140,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(left: 20, right: 10),
+                  itemCount: imageList.length,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 260,
+                      margin: const EdgeInsets.only(right: 15, bottom: 10),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        image: DecorationImage(
+                          image: AssetImage(imageList[index]['image_path']),
+                          fit: BoxFit.cover,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
@@ -474,22 +571,114 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
     );
   }
 
-  void depotswaping(String from, String to) {
-    String temp = from;
-    updepotsearchController.text = to;
+  // 5. HELPER WIDGETS
+  Widget _buildLocationInput({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required bool isUp,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Autocomplete(
+        key: isUp ? keyUp : keyDown,
+        initialValue: TextEditingValue(text: controller.text),
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          if (textEditingValue.text == '') {
+            return Iterable<String>.empty();
+          }
+          return Depotlist.where((String item) {
+            return item.toLowerCase().contains(
+              textEditingValue.text.toLowerCase(),
+            );
+          });
+        },
+        onSelected: (String item) {
+          controller.text = item;
+        },
+        fieldViewBuilder:
+            (context, fieldController, focusNode, onEditingComplete) {
+              // Sync logic
+              if (fieldController.text != controller.text) {
+                fieldController.text = controller.text;
+              }
+              if (isUp) {
+                updepotsearchController = fieldController;
+              } else {
+                downdepotsearchController = fieldController;
+              }
 
-    downdepotsearchController.text = temp;
+              return TextField(
+                controller: fieldController,
+                focusNode: focusNode,
+                onEditingComplete: onEditingComplete,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: C.theamecolor, size: 20),
+                  ),
+                  hintText: hint,
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                ),
+              );
+            },
+      ),
+    );
   }
 
-  Widget buildContainer() {
-    return Container(
-      width: 200,
-      height: 200,
-      color: Colors.blue,
-      child: Center(
-        child: Text(
-          'Hello, World!',
-          style: TextStyle(fontSize: 20, color: Colors.white),
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: Colors.grey[800],
+              ),
+            ),
+          ],
         ),
       ),
     );

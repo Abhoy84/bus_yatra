@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -9,7 +10,7 @@ import 'package:ticketbooking/models/seatmodel.dart';
 import 'package:ticketbooking/models/usermodel.dart';
 import 'package:ticketbooking/pages/homepage.dart';
 import 'package:ticketbooking/pages/color.dart';
-import 'package:ticketbooking/pages/dottedborder.dart';
+
 import 'package:ticketbooking/pages/loadingdialoge.dart';
 import 'package:ticketbooking/pages/seatselection.dart';
 
@@ -36,26 +37,113 @@ class buslistpageState extends State<buslistpage> {
   User? user;
   Future<List<Bus>> getorderrequests(String from, String to) async {
     try {
-      // Query Firestore for buses matching route
-      // Note: This assumes simple direct route matching.
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      // Query 1: Check UP Route (From -> To matches Up -> Down)
+      QuerySnapshot upSnapshot = await FirebaseFirestore.instance
           .collection('buses')
           .where('updepot', isEqualTo: from)
           .where('downdepot', isEqualTo: to)
           .get();
 
-      // If no direct Up_depot match, check reverse (Down_depot == from, Up_depot == to)?
-      // For now implementing strict match based on existing logic structure
+      print("DEBUG: Searching for From: '$from', To: '$to'");
+      print("DEBUG: Timestamp Date: '${homepageState.showdate}'");
+      print("DEBUG: UpSnapshot Docs: ${upSnapshot.docs.length}");
+
+      // Query 2: Check DOWN Route (From -> To matches Down -> Up)
+      QuerySnapshot downSnapshot = await FirebaseFirestore.instance
+          .collection('buses')
+          .where('downdepot', isEqualTo: from)
+          .where('updepot', isEqualTo: to)
+          .get();
+
+      print("DEBUG: DownSnapshot Docs: ${downSnapshot.docs.length}");
 
       buslist.clear();
-      if (snapshot.docs.isNotEmpty) {
+      Set<String> addedBusIds = {};
+
+      // Helper function to add buses
+      void addBuses(QuerySnapshot snapshot) {
         for (var doc in snapshot.docs) {
+          print("DEBUG: Processing Bus ID: ${doc.id}");
+          if (addedBusIds.contains(doc.id)) {
+            print("DEBUG: Bus already added, skipping.");
+            continue;
+          }
+
           Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
+          // --- 2-Hour Validation Logic ---
+          try {
+            // Deduce Departure Time
+            String departureTimeStr = '';
+            String up = data['updepot'] ?? '';
+            String down =
+                data['downdepot'] ?? ''; // Use local var to avoid confusion
+
+            // Check against the 'from' argument passed to getorderrequests
+            if (up.toLowerCase() == from.toLowerCase()) {
+              departureTimeStr = data['uptime'] ?? '';
+              print("DEBUG: Direction UP. Departure Time: $departureTimeStr");
+            } else if (down.toLowerCase() == from.toLowerCase()) {
+              departureTimeStr = data['downtime'] ?? '';
+              print("DEBUG: Direction DOWN. Departure Time: $departureTimeStr");
+            }
+
+            if (departureTimeStr.isNotEmpty && homepageState.showdate != null) {
+              String dateStr = homepageState.showdate!.trim();
+              DateFormat dateFormat = DateFormat('M/d/y');
+              DateTime busDate = dateFormat.parse(dateStr);
+              print("DEBUG: Parsed Bus Date: $busDate");
+
+              DateTime fullDeparture;
+              try {
+                // Try 12-hour format first (e.g., "10:30 AM")
+                DateFormat timeFormat = DateFormat("h:mm a");
+                DateTime timePart = timeFormat.parse(departureTimeStr);
+                fullDeparture = DateTime(
+                  busDate.year,
+                  busDate.month,
+                  busDate.day,
+                  timePart.hour,
+                  timePart.minute,
+                );
+              } catch (_) {
+                // Fallback to 24-hour format (e.g., "14:30")
+                DateFormat timeFormat = DateFormat("HH:mm");
+                DateTime timePart = timeFormat.parse(departureTimeStr);
+                fullDeparture = DateTime(
+                  busDate.year,
+                  busDate.month,
+                  busDate.day,
+                  timePart.hour,
+                  timePart.minute,
+                );
+              }
+              print("DEBUG: Full Departure DateTime: $fullDeparture");
+              print("DEBUG: Current DateTime: ${DateTime.now()}");
+
+              // Check 2-hour buffer
+              Duration diff = fullDeparture.difference(DateTime.now());
+              print("DEBUG: Time Difference (mins): ${diff.inMinutes}");
+
+              if (diff.inMinutes < 120) {
+                print("DEBUG: Bus skipped (Less than 120 mins).");
+                continue; // Skip bus as it departs in < 2 hours or passed
+              } else {
+                print("DEBUG: Bus VALID.");
+              }
+            } else {
+              print(
+                "DEBUG: Missing Time or Date info. DepTime: '$departureTimeStr', ShowDate: '${homepageState.showdate}'",
+              );
+            }
+          } catch (e) {
+            print("ERROR validating bus time: $e");
+          }
+          // -------------------------------
           Bus bus = Bus(
             data['busname'] ?? '',
             data['regno'] ?? '',
-            data['seatno'] ?? '',
+            data['seatno'].toString(),
             data['type'] ?? '',
             data['updepot'] ?? '',
             data['uptime'] ?? '',
@@ -68,13 +156,17 @@ class buslistpageState extends State<buslistpage> {
             data['busimage'] ?? '',
           );
           buslist.add(bus);
-          // Store ticket price if needed (logic from original code)
-          sp.setString("ticketprice", data['ticketprice'] ?? '');
+          addedBusIds.add(doc.id);
+
+          // Store ticket price (legacy logic, specific to first found?)
+          if (buslist.length == 1) {
+            sp.setString("ticketprice", data['ticketprice'] ?? '');
+          }
         }
-      } else {
-        // Try querying for reverse route or other conditions if needed
-        // For now, returning empty list or handle as 'No buses found'
       }
+
+      addBuses(upSnapshot);
+      addBuses(downSnapshot);
       return buslist;
     } catch (e) {
       Fluttertoast.showToast(msg: e.toString());
@@ -126,9 +218,42 @@ class buslistpageState extends State<buslistpage> {
           future: getorderrequests(From, To),
           builder: (BuildContext context, AsyncSnapshot data) {
             if (data.hasData) {
+              if (buslist.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.directions_bus_filled_outlined,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        "No Buses Found",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        "Try searching for a different date or route.",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
               return ListView.builder(
                 itemCount: buslist.length,
                 itemBuilder: (BuildContext context, int index) {
+                  // Helper function for first word
+                  String getFirstWord(String input) {
+                    if (input.isEmpty) return "";
+                    return input.split(' ')[0];
+                  }
+
                   return InkWell(
                     onTap: () {
                       takesetinfo(
@@ -146,258 +271,196 @@ class buslistpageState extends State<buslistpage> {
                             : buslist[index].Down_time;
                         busname = buslist[index].Bus_name;
                       });
-                      //heCD llo
                     },
-                    child: Container(
-                      width: MediaQuery.of(context).size.width - 30,
-                      height: 210,
-                      margin: const EdgeInsets.only(top: 0),
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Color.fromARGB(0, 227, 17, 17),
-                        borderRadius: BorderRadius.all(Radius.circular(15)),
+                    child: Card(
+                      elevation: 8,
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Container(
+                        padding: const EdgeInsets.all(15),
                         decoration: BoxDecoration(
+                          // Gradient Background for Attractive Look
                           gradient: LinearGradient(
                             colors: [
                               C.theamecolor,
-                              const Color.fromARGB(255, 8, 4, 125),
-
-                              // Color.fromARGB(255, 24, 210, 198),
-                              // Color.fromARGB(255, 47, 128, 237)
+                              Colors
+                                  .purple
+                                  .shade700, // Complementary vibrant color
                             ],
-                            begin: Alignment.bottomRight,
-                            end: Alignment.topLeft,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(15),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: Stack(
+                        child: Column(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5.0,
-                                vertical: 0,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    color: const Color.fromARGB(
-                                      0,
-                                      125,
-                                      100,
-                                      205,
-                                    ),
-                                    height: 180,
-                                    width: 125,
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          color: Colors.transparent,
-                                          width: 110,
-                                          height: 90,
-                                          child: Image.asset(
-                                            "asset/image/busdetails3.png",
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Container(
-                                          padding: const EdgeInsets.only(
-                                            right: 0,
-                                            left: 5,
-                                          ),
-                                          child: Text(
-                                            buslist[index].Bus_name
-                                                .toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Container(
-                                          child: Text(
-                                            "Reg.no: \n${buslist[index].Reg_no}"
-                                                .toUpperCase(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    color: const Color.fromARGB(0, 16, 7, 45),
-                                    height: 180,
-                                    width: 225,
-                                    child: CustomPaint(
-                                      painter: DottedBorderPainter(),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.start,
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 15,
-                                              bottom: 10,
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Text(
-                                                  buslist[index].Type,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                Text(
-                                                  "₹${buslist[index].Ticket_price} ",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 28,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 15,
-                                              bottom: 10,
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                buslist[index].Up_depot
-                                                            .toUpperCase() ==
-                                                        From.toUpperCase()
-                                                    ? Text(
-                                                        "Time: ${buslist[index].Up_time}",
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 18,
-                                                        ),
-                                                      )
-                                                    : Text(
-                                                        "Time: ${buslist[index].Down_time}",
-                                                        style: const TextStyle(
-                                                          color: Colors.white,
-                                                          fontSize: 18,
-                                                        ),
-                                                      ),
-                                              ],
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 15,
-                                              bottom: 5,
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Text(
-                                                  "Duration: ${buslist[index].Up_travel_time}",
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 15,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 15,
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.start,
-                                              children: [
-                                                buslist[index].Up_depot
-                                                            .toUpperCase() ==
-                                                        From.toUpperCase()
-                                                    ? Column(
-                                                        children: [
-                                                          Text(
-                                                            "From: ${buslist[index].Up_depot}",
-                                                            style:
-                                                                const TextStyle(
-                                                                  fontSize: 15,
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                          ),
-                                                          Text(
-                                                            "To: ${buslist[index].Down_depot} ",
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                    : Column(
-                                                        children: [
-                                                          Text(
-                                                            "Form: ${buslist[index].Down_depot}",
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                          ),
-                                                          Text(
-                                                            "TO: ${buslist[index].Up_depot} ",
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white,
-                                                                ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                            // Header: Bus Name and Type
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      buslist[index].Bus_name,
+                                      style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
                                       ),
                                     ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        buslist[index].Type.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // Price Tag
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
                                   ),
-                                ],
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    "₹${buslist[index].Ticket_price}",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: C.theamecolor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 15),
+                              child: Divider(
+                                color: Colors.white54,
+                                thickness: 1,
                               ),
                             ),
-                            const Positioned(
-                              left: 110,
-                              top: -25,
-                              child: CircleAvatar(
-                                backgroundColor: Colors.white,
-                                radius: 20,
-                              ),
-                            ),
-                            const Positioned(
-                              left: 110,
-                              bottom: -25,
-                              child: CircleAvatar(
-                                backgroundColor: Colors.white,
-                                radius: 20,
-                              ),
+
+                            // Route Info
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Departure
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      buslist[index].Up_depot.toUpperCase() ==
+                                              From.toUpperCase()
+                                          ? buslist[index].Up_time
+                                          : buslist[index].Down_time,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      getFirstWord(
+                                        buslist[index].Up_depot.toUpperCase() ==
+                                                From.toUpperCase()
+                                            ? buslist[index].Up_depot
+                                            : buslist[index].Down_depot,
+                                      ).toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // Arrow & Duration
+                                Column(
+                                  children: [
+                                    const Icon(
+                                      Icons.arrow_right_alt_rounded,
+                                      color: Colors.white,
+                                      size: 36,
+                                    ),
+                                    Text(
+                                      buslist[index].Up_depot.toUpperCase() ==
+                                              From.toUpperCase()
+                                          ? buslist[index].Up_travel_time
+                                          : buslist[index].Down_travel_time,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                // Arrival
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      buslist[index].Up_depot.toUpperCase() ==
+                                              From.toUpperCase()
+                                          ? buslist[index].Down_time
+                                          : buslist[index].Up_time,
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      getFirstWord(
+                                        buslist[index].Up_depot.toUpperCase() ==
+                                                From.toUpperCase()
+                                            ? buslist[index].Down_depot
+                                            : buslist[index].Up_depot,
+                                      ).toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),

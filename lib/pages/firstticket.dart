@@ -1,26 +1,27 @@
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
-import 'package:ticketbooking/models/Ticketmodel.dart';
-import 'package:ticketbooking/pages/buslist.dart';
+
 import 'package:ticketbooking/pages/color.dart';
-import 'dart:convert';
-
 import 'package:fluttertoast/fluttertoast.dart';
-
 import 'package:ticketbooking/pages/passengerlistafter.dart';
-
-import 'package:http/http.dart' as http;
-import 'package:ticketbooking/utils/urlpage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ticketbooking/pages/seatselection.dart';
 
 class ticketafter extends StatefulWidget {
-  const ticketafter({super.key});
+  final String orderId;
+  final bool isFromBooking;
+  const ticketafter({
+    super.key,
+    required this.orderId,
+    this.isFromBooking = false,
+  });
 
   @override
   State<ticketafter> createState() => ticketafterState();
 }
 
 class ticketafterState extends State<ticketafter> {
+  // ... existing variables ...
   double space = 40.0;
   String busname = '';
   String start = '';
@@ -31,441 +32,331 @@ class ticketafterState extends State<ticketafter> {
   static String id = '';
   String seat = '';
   String status = '';
-  String orderid = '';
   @override
   void initState() {
-    // Fluttertoast.showToast(msg: seatselectionState.orderid);
-
-    getTicketDetails(seatselectionState.orderid).whenComplete(() {
+    getTicketDetails(widget.orderId).whenComplete(() {
       setState(() {});
     });
-    // TODO: implement initState
     super.initState();
+  }
+
+  String getFirstWord(String input) {
+    if (input.isEmpty) return "";
+    List<String> words = input.trim().split(' ');
+    return words.isNotEmpty ? words[0] : input;
   }
 
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const buslistpage()));
+        if (widget.isFromBooking) {
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } else {
+          Navigator.pop(context);
+        }
         return false;
       },
       child: Scaffold(
+        backgroundColor: Colors.grey[100],
         appBar: AppBar(
+          elevation: 0,
           leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: C.textfromcolor,
-            ),
+            icon: Icon(Icons.arrow_back, color: C.textfromcolor),
             onPressed: () {
-              Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (builder) => const buslistpage()));
+              if (widget.isFromBooking) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              } else {
+                Navigator.pop(context);
+              }
             },
           ),
           backgroundColor: C.theamecolor,
           title: Text(
-            "Ticket",
+            "Booking Confirmed",
             style: TextStyle(color: C.textfromcolor),
           ),
+          centerTitle: true,
         ),
-        body: SingleChildScrollView(
-          child: Center(
-            child: Column(
-              children: [
-                id != ''
-                    ? Container(
-                        padding: const EdgeInsets.only(top: 8, left: 10),
-
-                        alignment: Alignment.topLeft,
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 15),
-                        // height: 650,
-                        // width: MediaQuery.of(context).size.width - 30,
-                        decoration: BoxDecoration(
-                          // color: Color.fromARGB(255, 168, 205, 251),
-                          gradient: const LinearGradient(
-                            colors: [
-                              Color.fromARGB(255, 255, 255, 255),
-                              Color.fromARGB(255, 239, 166, 235),
-                            ],
-                            begin: Alignment.bottomRight,
-                            end: Alignment.topLeft,
+        body: id == ''
+            ? Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      _buildTicketCard(),
+                      const SizedBox(height: 30),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: C.theamecolor,
+                          fixedSize: Size(
+                            MediaQuery.of(context).size.width * 0.8,
+                            50,
                           ),
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color.fromARGB(255, 105, 105, 105)
-                                  .withOpacity(0.5),
-                              spreadRadius: 3,
-                              blurRadius: 5,
-                              // ignore: prefer_const_constructors.
-                              offset: const Offset(2, 2),
-                            ),
-                          ],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
                         ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'BOOKING ID: $id',
-                                  style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color.fromARGB(255, 0, 0, 0)),
-                                ),
-                                const SizedBox(
-                                  width: 10,
-                                )
-                              ],
-                            ),
-                            // bus number
-                            // bus number
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 265,
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Text(
-                                    busname.toUpperCase(),
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 25),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            // bus type
-                            // bus type
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: const Text(
-                                    "Start form:",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Text(
-                                    start,
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: const Text(
-                                    "To:",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Text(
-                                    end,
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  width: 185,
-                                  child: const Text(
-                                    "Journey Date:",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  width: 80,
-                                  child: const Text(
-                                    "Time",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  width: 180,
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Text(
-                                    date,
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15),
-                                  ),
-                                ),
-                                Container(
-                                  width: 80,
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: Text(
-                                    time,
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 15),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(
-                              height: 10,
-                            ),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  width: 185,
-                                  child: const Text(
-                                    "Reserved seat no.",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: const Text(
-                                    "Paid Amount",
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  width: 185,
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: Text(
-                                    seat,
-                                    style: const TextStyle(
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: Text(
-                                    "₹$amount",
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: space,
-                                ),
-                                Container(
-                                  width: 190,
-                                  padding: const EdgeInsets.only(
-                                      bottom: 10, right: 70),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: C.theamecolor,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (builder) =>
-                                                  const passengerlistafter()));
-                                    },
-                                    child: const Text("Passsenger list",
-                                        style: TextStyle(
-                                            color: Color.fromARGB(
-                                                255, 255, 255, 255),
-                                            fontSize: 10)),
-                                  ),
-                                ),
-                                Container(
-                                  decoration: const BoxDecoration(
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(20)),
-                                    color: Color.fromARGB(255, 8, 187, 23),
-                                  ),
-                                  height: 30,
-                                  padding: const EdgeInsets.all(7),
-                                  child: const Text("Confirmed!",
-                                      style: TextStyle(
-                                        color:
-                                            Color.fromARGB(255, 255, 255, 255),
-                                      )),
-                                ),
-                              ],
-                            ),
-                          ],
+                        child: Text(
+                          "Back to Home",
+                          style: TextStyle(
+                            color: C.textfromcolor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : Center(
-                        child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 100),
-                        width: 350,
-                        color: const Color.fromARGB(0, 7, 28, 255),
-                        height: 400,
-                        child: Image.asset(
-                          "asset/image/noticket.png",
-                          fit: BoxFit.fill,
-                        ),
-                      )),
-              ],
-            ),
-          ),
-        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
   }
 
+  Widget _buildTicketCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: C.theamecolor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "TICKET",
+                  style: TextStyle(
+                    color: C.textfromcolor,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                Text(
+                  "ID: $id",
+                  style: TextStyle(
+                    color: C.textfromcolor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Bus Name
+                Center(
+                  child: Text(
+                    busname.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: C.theamecolor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Route (From -> To)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "FROM",
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          getFirstWord(start).toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Icon(Icons.directions_bus, color: C.theamecolor, size: 30),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          "TO",
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          getFirstWord(end).toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 20),
+
+                // Details Grid
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildDetailItem("DATE", date),
+                    _buildDetailItem("TIME", time),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildDetailItem("SEATS", seat),
+                    _buildDetailItem("PRICE", "₹$amount"),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+                const Divider(),
+                const SizedBox(height: 10),
+
+                // Footer Actions
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            "Confirmed",
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (builder) => const passengerlistafter(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        "Passenger List >",
+                        style: TextStyle(
+                          color: C.theamecolor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
+
   Future<void> getTicketDetails(String orderid) async {
-    Map data = {"orderid": orderid};
-
     try {
-      var response = await http.post(
-          // Uri.https( MyUrl.mainurl,MyUrl.suburl+ "student_login.php"),
-          Uri.parse("${MyUrl.fullurl}get_ticket.php"),
-          body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        // ignore: unused_local_variable
-        Ticket ticket = Ticket(
-            busname: jsondata["busname"],
-            start: jsondata["start"],
-            end: jsondata["end"],
-            time: jsondata["time"],
-            date: jsondata["date"],
-            amount: jsondata["amount"],
-            id: jsondata["id"],
-            seat: jsondata["seat"],
-            status: jsondata['booking_status'],
-            username: jsondata['username'],
-            busid: jsondata['busid'],
-            userid: jsondata['userid']);
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(orderid)
+          .get();
 
-        busname = jsondata["busname"];
-        start = jsondata["start"];
-        end = jsondata["end"];
-        time = jsondata["time"];
-        date = jsondata["date"];
-        amount = jsondata["amount"];
-        id = jsondata["id"];
-        seat = jsondata["seat"];
-        status = jsondata['booking_status'];
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-        // sp = await SharedPreferences.getInstance();
-        // sp.setString('email', jsondata['email']);
-        // sp.setString('fname', jsondata['fname']);
-        // sp.setString('phone', jsondata['phone']);
-        // sp.setString('uid', jsondata['uid']);
-        // sp.setString('image', jsondata['image']);
+        // Update UI Variables
+        busname = data['busName'] ?? '';
+        start = data['from'] ?? '';
+        end = data['to'] ?? '';
+        time = data['time'] ?? '';
+        date = data['date'] ?? '';
+        amount = data['totalPrice'].toString();
+        id = doc.id;
 
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
+        List seats = data['seatLabels'] ?? [];
+        seat = seats.join(', ');
+
+        status = data['status'] ?? '';
+
+        Fluttertoast.showToast(msg: "Ticket Loaded Successfully");
       } else {
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
+        Fluttertoast.showToast(msg: "Ticket Not Found");
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
+      Fluttertoast.showToast(msg: "Error loading ticket: $e");
     }
   }
 }

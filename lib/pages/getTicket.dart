@@ -1,17 +1,15 @@
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
-import 'package:ticketbooking/models/Ticketmodel.dart';
+
 import 'package:ticketbooking/pages/bookedTicketlist.dart';
 import 'package:ticketbooking/pages/buslist.dart';
 import 'package:ticketbooking/pages/color.dart';
-import 'dart:convert';
 
 import 'package:fluttertoast/fluttertoast.dart';
 
 import 'package:ticketbooking/pages/passengerlist.dart';
 
-import 'package:http/http.dart' as http;
-import 'package:ticketbooking/utils/urlpage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ticket extends StatefulWidget {
   const ticket({super.key});
@@ -36,10 +34,11 @@ class ticketState extends State<ticket> {
   void initState() {
     // Fluttertoast.showToast(msg: buslistpageState.bookid);
 
-    getTicketDetails(bookedticketlistState.orderid != null
-            ? bookedticketlistState.orderid!
-            : buslistpageState.bookid)
-        .whenComplete(() {
+    getTicketDetails(
+      bookedticketlistState.orderid != null
+          ? bookedticketlistState.orderid!
+          : buslistpageState.bookid,
+    ).whenComplete(() {
       setState(() {});
     });
 
@@ -54,16 +53,10 @@ class ticketState extends State<ticket> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: Icon(
-            Icons.arrow_back_rounded,
-            color: C.textfromcolor,
-          ),
+          icon: Icon(Icons.arrow_back_rounded, color: C.textfromcolor),
         ),
         backgroundColor: C.theamecolor,
-        title: Text(
-          "Ticket",
-          style: TextStyle(color: C.textfromcolor),
-        ),
+        title: Text("Ticket", style: TextStyle(color: C.textfromcolor)),
       ),
       body: SingleChildScrollView(
         child: Center(
@@ -77,7 +70,9 @@ class ticketState extends State<ticket> {
 
                           alignment: Alignment.topLeft,
                           margin: const EdgeInsets.symmetric(
-                              vertical: 10, horizontal: 15),
+                            vertical: 10,
+                            horizontal: 15,
+                          ),
                           // height: 650,
                           // width: MediaQuery.of(context).size.width - 30,
                           decoration: BoxDecoration(
@@ -93,8 +88,12 @@ class ticketState extends State<ticket> {
                             borderRadius: BorderRadius.circular(15),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color.fromARGB(255, 105, 105, 105)
-                                    .withOpacity(0.5),
+                                color: const Color.fromARGB(
+                                  255,
+                                  105,
+                                  105,
+                                  105,
+                                ).withOpacity(0.5),
                                 spreadRadius: 3,
                                 blurRadius: 5,
                                 // ignore: prefer_const_constructors.
@@ -110,18 +109,17 @@ class ticketState extends State<ticket> {
                                   Text(
                                     'BOOKING ID: $id',
                                     style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color.fromARGB(255, 0, 0, 0)),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color.fromARGB(255, 0, 0, 0),
+                                    ),
                                   ),
-                                  const SizedBox(
-                                    width: 10,
-                                  )
+                                  const SizedBox(width: 10),
                                 ],
                               ),
-                              // bus number
-                              // bus number
 
+                              // bus number
+                              // bus number
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
@@ -131,32 +129,29 @@ class ticketState extends State<ticket> {
                                     child: Text(
                                       busname.toUpperCase(),
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 25),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 25,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 10),
                               // bus type
                               // bus type
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 5),
                                     child: const Text(
                                       "Start form:",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -165,38 +160,33 @@ class ticketState extends State<ticket> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 10),
                                     child: Text(
                                       start,
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 10),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 5),
                                     child: const Text(
                                       "To:",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -205,39 +195,34 @@ class ticketState extends State<ticket> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 10),
                                     child: Text(
                                       end,
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 10),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 5),
                                     width: 185,
                                     child: const Text(
                                       "Journey Date:",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -247,9 +232,9 @@ class ticketState extends State<ticket> {
                                     child: const Text(
                                       "Time",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -258,18 +243,17 @@ class ticketState extends State<ticket> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     width: 180,
                                     padding: const EdgeInsets.only(bottom: 10),
                                     child: Text(
                                       date,
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                   ),
                                   Container(
@@ -278,32 +262,29 @@ class ticketState extends State<ticket> {
                                     child: Text(
                                       time,
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(
-                                height: 10,
-                              ),
+                              const SizedBox(height: 10),
 
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     padding: const EdgeInsets.only(bottom: 5),
                                     width: 185,
                                     child: const Text(
                                       "Reserved seat no.",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -312,9 +293,9 @@ class ticketState extends State<ticket> {
                                     child: const Text(
                                       "Paid Amount",
                                       style: TextStyle(
-                                          fontSize: 12,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontSize: 12,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -323,18 +304,17 @@ class ticketState extends State<ticket> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     width: 185,
                                     padding: const EdgeInsets.only(bottom: 5),
                                     child: Text(
                                       seat,
                                       style: const TextStyle(
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 17),
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 17,
+                                      ),
                                     ),
                                   ),
                                   Container(
@@ -342,10 +322,10 @@ class ticketState extends State<ticket> {
                                     child: Text(
                                       "₹ $amount",
                                       style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                          color:
-                                              Color.fromARGB(255, 16, 7, 45)),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                        color: Color.fromARGB(255, 16, 7, 45),
+                                      ),
                                       textAlign: TextAlign.left,
                                     ),
                                   ),
@@ -355,149 +335,194 @@ class ticketState extends State<ticket> {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    width: space,
-                                  ),
+                                  SizedBox(width: space),
                                   Container(
                                     width: 190,
                                     padding: const EdgeInsets.only(
-                                        bottom: 10, right: 70),
+                                      bottom: 10,
+                                      right: 70,
+                                    ),
                                     child: ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: C.theamecolor,
                                       ),
                                       onPressed: () {
                                         Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                                builder: (builder) =>
-                                                    const passengerlist()));
+                                          MaterialPageRoute(
+                                            builder: (builder) =>
+                                                const passengerlist(),
+                                          ),
+                                        );
                                       },
-                                      child: const Text("Passsenger list",
-                                          style: TextStyle(
-                                              color: Color.fromARGB(
-                                                  255, 255, 255, 255),
-                                              fontSize: 10)),
+                                      child: const Text(
+                                        "Passsenger list",
+                                        style: TextStyle(
+                                          color: Color.fromARGB(
+                                            255,
+                                            255,
+                                            255,
+                                            255,
+                                          ),
+                                          fontSize: 10,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   status == "1"
                                       ? Container(
                                           decoration: const BoxDecoration(
                                             borderRadius: BorderRadius.all(
-                                                Radius.circular(20)),
-                                            color:
-                                                Color.fromARGB(255, 8, 187, 23),
+                                              Radius.circular(20),
+                                            ),
+                                            color: Color.fromARGB(
+                                              255,
+                                              8,
+                                              187,
+                                              23,
+                                            ),
                                           ),
                                           height: 30,
                                           padding: const EdgeInsets.all(7),
-                                          child: const Text("Confirmed!",
-                                              style: TextStyle(
-                                                color: Color.fromARGB(
-                                                    255, 255, 255, 255),
-                                              )),
+                                          child: const Text(
+                                            "Confirmed!",
+                                            style: TextStyle(
+                                              color: Color.fromARGB(
+                                                255,
+                                                255,
+                                                255,
+                                                255,
+                                              ),
+                                            ),
+                                          ),
                                         )
                                       : status == "2"
-                                          ? Container(
-                                              decoration: const BoxDecoration(
-                                                borderRadius: BorderRadius.all(
-                                                    Radius.circular(20)),
-                                                color: Color.fromARGB(
-                                                    255, 8, 59, 187),
-                                              ),
-                                              height: 30,
-                                              padding: const EdgeInsets.all(7),
-                                              child: const Text("Complete!",
-                                                  style: TextStyle(
-                                                    color: Color.fromARGB(
-                                                        255, 255, 255, 255),
-                                                  )),
-                                            )
-                                          : Container(
-                                              decoration: const BoxDecoration(
-                                                borderRadius: BorderRadius.all(
-                                                    Radius.circular(20)),
-                                                color: Color.fromARGB(
-                                                    255, 187, 8, 8),
-                                              ),
-                                              height: 30,
-                                              padding: const EdgeInsets.all(7),
-                                              child: const Text("expired!",
-                                                  style: TextStyle(
-                                                    color: Color.fromARGB(
-                                                        255, 255, 255, 255),
-                                                  )),
+                                      ? Container(
+                                          decoration: const BoxDecoration(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(20),
                                             ),
+                                            color: Color.fromARGB(
+                                              255,
+                                              8,
+                                              59,
+                                              187,
+                                            ),
+                                          ),
+                                          height: 30,
+                                          padding: const EdgeInsets.all(7),
+                                          child: const Text(
+                                            "Complete!",
+                                            style: TextStyle(
+                                              color: Color.fromARGB(
+                                                255,
+                                                255,
+                                                255,
+                                                255,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : Container(
+                                          decoration: const BoxDecoration(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(20),
+                                            ),
+                                            color: Color.fromARGB(
+                                              255,
+                                              187,
+                                              8,
+                                              8,
+                                            ),
+                                          ),
+                                          height: 30,
+                                          padding: const EdgeInsets.all(7),
+                                          child: const Text(
+                                            "expired!",
+                                            style: TextStyle(
+                                              color: Color.fromARGB(
+                                                255,
+                                                255,
+                                                255,
+                                                255,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(
-                          height: 20,
-                        ),
+                        const SizedBox(height: 20),
                         SizedBox(
                           height: 50,
                           width: 150,
                           child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red),
-                              onPressed: () {
-                                showDialog(
-                                  barrierDismissible: false,
-                                  context: context,
-                                  builder: (context) {
-                                    return AlertDialog(
-                                      title: const Text(
-                                        '*Your Payment will be refund with in 24 hours!!',
-                                        style: TextStyle(
-                                            fontSize: 23,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.red),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                barrierDismissible: false,
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text(
+                                      '*Your Payment will be refund with in 24 hours!!',
+                                      style: TextStyle(
+                                        fontSize: 23,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.red,
                                       ),
-                                      content: const Text(
-                                        'Are you sure to cancel?',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w500),
+                                    ),
+                                    content: const Text(
+                                      'Are you sure to cancel?',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            // emailtype = false;
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: const Text(
-                                            'No',
-                                            style: TextStyle(fontSize: 17),
-                                          ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          // emailtype = false;
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: const Text(
+                                          'No',
+                                          style: TextStyle(fontSize: 17),
                                         ),
-                                        TextButton(
-                                          onPressed: () async {
-                                            Navigator.pop(context);
-                                            cancelTicket(bookedticketlistState
-                                                            .orderid !=
-                                                        null
-                                                    ? bookedticketlistState
-                                                        .orderid!
-                                                    : buslistpageState.bookid)
-                                                .whenComplete(() {
-                                              setState(() {});
-                                            });
-                                          },
-                                          child: const Text(
-                                            'Yes',
-                                            style: TextStyle(fontSize: 17),
-                                          ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Navigator.pop(context);
+                                          cancelTicket(
+                                            bookedticketlistState.orderid !=
+                                                    null
+                                                ? bookedticketlistState.orderid!
+                                                : buslistpageState.bookid,
+                                          ).whenComplete(() {
+                                            setState(() {});
+                                          });
+                                        },
+                                        child: const Text(
+                                          'Yes',
+                                          style: TextStyle(fontSize: 17),
                                         ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                              child: Text(
-                                "Cancel",
-                                style: TextStyle(
-                                    fontSize: 20, color: C.textfromcolor),
-                              )),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                            child: Text(
+                              "Cancel",
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: C.textfromcolor,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     )
@@ -521,74 +546,72 @@ class ticketState extends State<ticket> {
   }
 
   Future<void> getTicketDetails(String orderid) async {
-    Map data = {"orderid": orderid};
-
     try {
-      var response = await http.post(
-          // Uri.https( MyUrl.mainurl,MyUrl.suburl+ "student_login.php"),
-          Uri.parse("${MyUrl.fullurl}get_ticket.php"),
-          body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        // Navigator.pop(context);
-        // ignore: unused_local_variable
-        Ticket ticket = Ticket(
-            busname: jsondata["busname"],
-            start: jsondata["start"],
-            end: jsondata["end"],
-            time: jsondata["time"],
-            date: jsondata["date"],
-            amount: jsondata["amount"],
-            id: jsondata["id"],
-            seat: jsondata["seat"],
-            status: jsondata['booking_status'],
-            username: jsondata['username'],
-            busid: jsondata['busid'],
-            userid: jsondata['userid']);
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(orderid)
+          .get();
 
-        busname = jsondata["busname"];
-        start = jsondata["start"];
-        end = jsondata["end"];
-        time = jsondata["time"];
-        date = jsondata["date"];
-        amount = jsondata["amount"];
-        id = jsondata["id"];
-        seat = jsondata["seat"];
-        status = jsondata['booking_status'];
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+        String seatStr = "";
+        if (data['seatLabels'] is List) {
+          seatStr = (data['seatLabels'] as List).join(',');
+        } else {
+          seatStr = data['seatLabels'].toString();
+        }
+
+        setState(() {
+          busname = data['busName'] ?? '';
+          start = data['from'] ?? '';
+          end = data['to'] ?? '';
+          time = data['time'] ?? '';
+          date = data['date'] ?? '';
+          amount = data['totalPrice'].toString();
+          id = doc.id;
+          seat = seatStr;
+          status = data['status'] ?? 'confirmed';
+          if (data['status'] == 'pending_payment')
+            status = "0"; // map to legacy if needed or handle UI
+          // Legacy status mapping: 1=Confirmed, 2=Complete, otherwise Expired/Cancelled
+          // Firestore uses strings likely. 'confirmed' -> ?
+          // Let's adjust UI check logic or map here.
+          // Re-mapping for UI compatibility based on existing build method:
+          // status == "1" (Confirmed)
+          // status == "2" (Complete)
+
+          if (data['status'] == 'confirmed') {
+            status = "1";
+          } else if (data['status'] == 'completed') {
+            status = "2";
+          } else {
+            status = "0"; // expired or cancelled
+          }
+        });
       } else {
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
+        Fluttertoast.showToast(msg: "Ticket Not Found");
       }
     } catch (e) {
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
+      Fluttertoast.showToast(msg: e.toString());
     }
   }
 
   Future<void> cancelTicket(String orderid) async {
-    Map data = {"orderid": orderid};
-
     try {
-      var response =
-          await http.post(Uri.parse("${MyUrl.fullurl}cancel.php"), body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        Navigator.pop(context);
-        Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: ((context) => const buslistpage())));
-      } else {
-        // Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-    } catch (e) {
-      // Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: e.toString(),
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(orderid)
+          .update({'status': 'cancelled'});
+
+      Navigator.pop(context);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: ((context) => const buslistpage())),
       );
+
+      Fluttertoast.showToast(msg: "Ticket Cancelled Successfully");
+    } catch (e) {
+      Fluttertoast.showToast(msg: e.toString());
     }
   }
 }

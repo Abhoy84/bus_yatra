@@ -6,15 +6,11 @@ import 'package:ticketbooking/models/Ticketmodel.dart';
 import 'package:ticketbooking/models/usermodel.dart';
 import 'package:ticketbooking/pages/dottedborder.dart';
 import 'package:ticketbooking/pages/loadingdialoge.dart';
-import 'package:ticketbooking/pages/getTicket.dart';
+
+import 'package:ticketbooking/pages/firstticket.dart';
 import 'package:ticketbooking/pages/color.dart';
-import 'dart:convert';
 
-import 'package:fluttertoast/fluttertoast.dart';
-
-import 'package:http/http.dart' as http;
-
-import 'package:ticketbooking/utils/urlpage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class bookedticketlist extends StatefulWidget {
   const bookedticketlist({super.key});
@@ -52,33 +48,20 @@ class bookedticketlistState extends State<bookedticketlist> {
             Navigator.pop(context);
             Navigator.pop(context);
           },
-          icon: Icon(
-            Icons.home,
-            color: C.textfromcolor,
-          ),
+          icon: Icon(Icons.home, color: C.textfromcolor),
         ),
         backgroundColor: C.theamecolor,
-        title: Text(
-          "Booked Tickets",
-          style: TextStyle(color: C.textfromcolor),
-        ),
+        title: Text("Booked Tickets", style: TextStyle(color: C.textfromcolor)),
         actions: [
           TextButton(
-              onPressed: () {
-                search = !search;
-                setState(() {});
-              },
-              child: search == false
-                  ? const Icon(
-                      Icons.search,
-                      color: Colors.white,
-                      size: 40,
-                    )
-                  : const Icon(
-                      Icons.search_off,
-                      size: 40,
-                      color: Colors.white,
-                    ))
+            onPressed: () {
+              search = !search;
+              setState(() {});
+            },
+            child: search == false
+                ? const Icon(Icons.search, color: Colors.white, size: 40)
+                : const Icon(Icons.search_off, size: 40, color: Colors.white),
+          ),
         ],
       ),
       body: search == true
@@ -86,24 +69,23 @@ class bookedticketlistState extends State<bookedticketlist> {
               child: Container(
                 child: Column(
                   children: [
-                    const SizedBox(
-                      height: 50,
-                    ),
+                    const SizedBox(height: 50),
                     const Text(
                       "Search by Date",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(
-                      height: 20,
-                    ),
+                    const SizedBox(height: 20),
                     InkWell(
                       onTap: () async {
                         DateTime? pickdate = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime(2022),
-                            lastDate: DateTime(2050));
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime(2022),
+                          lastDate: DateTime(2050),
+                        );
 
                         if (pickdate != null) {
                           viewdate =
@@ -122,29 +104,27 @@ class bookedticketlistState extends State<bookedticketlist> {
                         width: MediaQuery.of(context).size.width - 100,
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.black, width: 3),
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(20)),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(20),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(
-                              Icons.calendar_month,
-                              size: 30,
-                            ),
+                            const Icon(Icons.calendar_month, size: 30),
                             Text(
                               viewdate != null
                                   ? viewdate!
                                   : "Select Your Date here",
                               style: const TextStyle(
-                                  fontSize: 20, fontWeight: FontWeight.w400),
-                            )
+                                fontSize: 20,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(
-                      height: 30,
-                    ),
+                    const SizedBox(height: 30),
                     Container(
                       height: 50,
                       width: MediaQuery.of(context).size.width - 100,
@@ -176,315 +156,352 @@ class bookedticketlistState extends State<bookedticketlist> {
                 ),
               ),
             )
-          : FutureBuilder(
-              future: allticket == true
-                  ? getTicketList(uid)
-                  : getTicketListByDate(uid, showdate!),
-              builder: (BuildContext context, AsyncSnapshot data) {
-                if (data.hasData) {
-                  return ListView.builder(
-                    itemCount: tickets.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      return InkWell(
-                        onTap: () {
-                          orderid = tickets[index].id;
-                          Navigator.of(context).push(MaterialPageRoute(
-                              builder: (builder) => const ticket()));
-                        },
-                        child: Container(
-                          width: MediaQuery.of(context).size.width - 30,
-                          // height: 210,
-                          margin: const EdgeInsets.only(
-                            top: 0,
-                          ),
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            color: Color.fromARGB(0, 227, 17, 17),
-                            borderRadius: BorderRadius.all(
-                              Radius.circular(
-                                15,
-                              ),
-                            ),
-                          ),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  // Color.fromARGB(255, 110, 142, 14819),
-                                  // Color.fromARGB(255, 73, 97, 205),
-                                  Color.fromARGB(255, 91, 225, 138),
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('bookings')
+                  .where('userId', isEqualTo: uid)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-                                  Color.fromARGB(255, 74, 177, 113),
-                                ],
-                                begin: Alignment.bottomRight,
-                                end: Alignment.topLeft,
-                              ),
-                              borderRadius: BorderRadius.circular(15),
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: LoadingDialog());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 100),
+                      width: 350,
+                      height: 400,
+                      child: Image.asset(
+                        "asset/image/noticket.png",
+                        fit: BoxFit.fill,
+                      ),
+                    ),
+                  );
+                }
+
+                tickets.clear();
+                for (var doc in snapshot.data!.docs) {
+                  Map<String, dynamic> data =
+                      doc.data() as Map<String, dynamic>;
+
+                  // Handle seatLabels which might be a List
+                  String seatStr = "";
+                  if (data['seatLabels'] is List) {
+                    seatStr = (data['seatLabels'] as List).join(',');
+                  } else {
+                    seatStr = data['seatLabels'].toString();
+                  }
+
+                  // Handle totalPrice
+                  String amountStr = data['totalPrice'].toString();
+
+                  Ticket ticket = Ticket(
+                    busname: data['busName'] ?? '',
+                    start: data['from'] ?? '',
+                    end: data['to'] ?? '',
+                    id: doc.id,
+                    seat: seatStr,
+                    date: data['date'] ?? '',
+                    time: data['time'] ?? '',
+                    amount: amountStr,
+                    status:
+                        data['status'] ??
+                        'confirmed', // utilizing status if present
+                    username: '', // Not strictly needed for list view usually
+                    busid: data['busId'] ?? '',
+                    userid: data['userId'] ?? '',
+                    timestamp: data['timestamp'] != null
+                        ? (data['timestamp'] as Timestamp).toDate()
+                        : null,
+                  );
+                  tickets.add(ticket);
+                }
+
+                // Client-side sorting to avoid Firestore Index requirement
+                tickets.sort((a, b) {
+                  if (a.timestamp == null && b.timestamp == null) return 0;
+                  if (a.timestamp == null) return 1;
+                  if (b.timestamp == null) return -1;
+                  return b.timestamp!.compareTo(a.timestamp!);
+                });
+
+                return ListView.builder(
+                  itemCount: tickets.length,
+                  padding: const EdgeInsets.only(top: 10, bottom: 20),
+                  itemBuilder: (BuildContext context, int index) {
+                    // Helper to get first word
+                    String firstWord(String input) {
+                      return input.isNotEmpty ? input.split(' ').first : '';
+                    }
+
+                    return InkWell(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (builder) =>
+                                ticketafter(orderId: tickets[index].id),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
                             ),
-                            child: Stack(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5.0, vertical: 0),
-                                  child: Row(
-                                    // crossAxisAlignment: CrossAxisAlignment.start,
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Strip (Status)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: C.theamecolor.withOpacity(0.1),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    tickets[index].busname.toUpperCase(),
+                                    style: TextStyle(
+                                      color: C.theamecolor,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: C.theamecolor,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      "Confirmed",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Content
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  // Route Row
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Container(
-                                        color: const Color.fromARGB(
-                                            0, 125, 100, 205),
-                                        // height: 180,
-                                        width: 235,
+                                      Expanded(
                                         child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Container(
-                                              padding: const EdgeInsets.only(
-                                                  left: 5, top: 5, bottom: 15),
-                                              alignment: Alignment.topLeft,
-                                              color: const Color.fromARGB(
-                                                  0, 215, 10, 10),
-                                              child: Text(
-                                                "Ticket NO: ${tickets[index].id}",
-                                                style: TextStyle(
-                                                    color: C.textfromcolor,
-                                                    fontSize: 10),
+                                            Text(
+                                              "FROM",
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            Container(
-                                              alignment: Alignment.topCenter,
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 20, left: 5),
-                                              child: Text(
-                                                "!! happy journey !!"
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              firstWord(tickets[index].start),
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
                                               ),
-                                            ),
-                                            // SizedBox(
-                                            //   height: 15,
-                                            // ),
-                                            Container(
-                                              alignment: Alignment.topLeft,
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 10, left: 5),
-                                              child: Text(
-                                                tickets[index].start,
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16),
-                                              ),
-                                            ),
-                                            // SizedBox(
-                                            //   height: 10,
-                                            // ),
-                                            Container(
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 10, left: 7),
-                                              alignment: Alignment.topLeft,
-                                              child: Text(
-                                                "to ".toUpperCase(),
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16),
-                                              ),
-                                            ),
-                                            // SizedBox(
-                                            //   height: 10,
-                                            // ),
-                                            Container(
-                                              alignment: Alignment.topLeft,
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 18, left: 5),
-                                              child: Text(
-                                                tickets[index].end,
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16),
-                                              ),
-                                            ),
-                                            // SizedBox(
-                                            //   height: 20,
-                                            // ),
-                                            Container(
-                                              alignment: Alignment.topRight,
-                                              padding: const EdgeInsets.only(
-                                                  right: 25, bottom: 5),
-                                              child: Text(
-                                                " ${tickets[index].date}",
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 14),
-                                              ),
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ],
                                         ),
                                       ),
-                                      Container(
-                                        color:
-                                            const Color.fromARGB(0, 16, 7, 45),
-                                        child: CustomPaint(
-                                          painter: DottedBorderPainter(),
-                                          child: Column(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                alignment: Alignment.topLeft,
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 18, left: 10),
-                                                child: const Icon(
-                                                  Icons
-                                                      .directions_bus_filled_outlined,
-                                                  color: Colors.white,
-                                                  size: 120,
-                                                ),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                        ),
+                                        child: Icon(
+                                          Icons.arrow_forward_rounded,
+                                          color: Colors.grey[300],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              "TO",
+                                              style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
                                               ),
-                                              Container(
-                                                alignment: Alignment.topLeft,
-                                                padding: const EdgeInsets.only(
-                                                    top: 0,
-                                                    bottom: 10,
-                                                    left: 0),
-                                                child: Text(
-                                                  tickets[index]
-                                                      .busname
-                                                      .toUpperCase(),
-                                                  style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 12),
-                                                ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              firstWord(tickets[index].end),
+                                              style: const TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
                                               ),
-                                            ],
-                                          ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const Positioned(
-                                  left: 220,
-                                  top: -25,
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.white,
-                                    radius: 20,
+                                  const SizedBox(height: 16),
+                                  // Divider
+                                  Divider(
+                                    color: Colors.grey[100],
+                                    thickness: 1,
                                   ),
-                                ),
-                                const Positioned(
-                                  left: 220,
-                                  bottom: -25,
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.white,
-                                    radius: 20,
+                                  const SizedBox(height: 16),
+                                  // Details Row
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      // Date
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "DATE",
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            tickets[index].date,
+                                            style: TextStyle(
+                                              color: Colors.grey[800],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Time
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            "TIME",
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            tickets[index].time,
+                                            style: TextStyle(
+                                              color: Colors.grey[800],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      // Seat
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            "SEAT",
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            tickets[index].seat,
+                                            style: TextStyle(
+                                              color: Colors.grey[800],
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                )
-                              ],
+                                  const SizedBox(height: 12),
+                                  // Booked On
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        tickets[index].timestamp != null
+                                            ? "Booked on: ${DateFormat('d MMM, h:mm a').format(tickets[index].timestamp!)}"
+                                            : "",
+                                        style: TextStyle(
+                                          color: Colors.grey[400],
+                                          fontSize: 10,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      );
-                    },
-                  );
-                } else {
-                  return const Center(
-                    child: LoadingDialog(),
-                    // child: CircularProgressIndicator(
-                    //   valueColor: AlwaysStoppedAnimation(
-                    //     Color.fromARGB(255, 0, 132, 255),
-                    //   ),
-                    // ),
-                  );
-                }
+                      ),
+                    );
+                  },
+                );
               },
             ),
     );
-  }
-
-  Future getTicketList(String userid) async {
-    Map data = {"userid": userid};
-    try {
-      var response = await http.post(
-          Uri.parse("${MyUrl.fullurl}get_bookedticketlist.php"),
-          body: data);
-      var jsondata = jsonDecode(response.body.toString());
-      if (jsondata["status"] == true) {
-        tickets.clear();
-        for (int i = 0; i < jsondata['data'].length; i++) {
-          Ticket ticket = Ticket(
-              busname: jsondata['data'][i]['busname'],
-              start: jsondata['data'][i]['start'],
-              end: jsondata['data'][i]['end'],
-              id: jsondata['data'][i]['orderid'],
-              seat: jsondata['data'][i]['seatno'],
-              date: jsondata['data'][i]['date'],
-              time: jsondata['data'][i]['time'],
-              amount: jsondata['data'][i]['amount'],
-              status: jsondata['data'][i]['status'],
-              username: jsondata['data'][i]['username'],
-              busid: jsondata['data'][i]['busid'],
-              userid: jsondata['data'][i]['userid']);
-          tickets.add(ticket);
-
-          // reg = jsondata['data'][i]['Reg_no'];
-          // sp.setString("ticketprice", jsondata['data'][i]['Ticket_price']);
-        }
-      } else {
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-      return tickets;
-    } catch (e) {
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
-  }
-
-  Future getTicketListByDate(String userid, String date) async {
-    Map data = {"userid": userid, 'date': date};
-    try {
-      var response = await http.post(
-          Uri.parse("${MyUrl.fullurl}get_datebookticket.php"),
-          body: data);
-      var jsondata = jsonDecode(response.body.toString());
-      if (jsondata["status"] == true) {
-        tickets.clear();
-        for (int i = 0; i < jsondata['data'].length; i++) {
-          Ticket ticket = Ticket(
-              busname: jsondata['data'][i]['busname'],
-              start: jsondata['data'][i]['start'],
-              end: jsondata['data'][i]['end'],
-              id: jsondata['data'][i]['orderid'],
-              seat: jsondata['data'][i]['seatno'],
-              date: jsondata['data'][i]['date'],
-              time: jsondata['data'][i]['time'],
-              amount: jsondata['data'][i]['amount'],
-              status: jsondata['data'][i]['status'],
-              username: jsondata['data'][i]['username'],
-              busid: jsondata['data'][i]['busid'],
-              userid: jsondata['data'][i]['userid']);
-          tickets.add(ticket);
-        }
-      } else {
-        Fluttertoast.showToast(
-          msg: 'loading..',
-        );
-      }
-      return tickets;
-    } catch (e) {
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
   }
 
   Future getdata() async {

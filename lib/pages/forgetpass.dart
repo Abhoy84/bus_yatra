@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:ticketbooking/pages/color.dart';
-import 'package:ticketbooking/pages/enterotp.dart';
 import 'package:ticketbooking/pages/loadingdialoge.dart';
-import 'package:email_otp/email_otp.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 // import 'package:animated_splash_screen/animated_splash_screen.dart';
 
 class forgetpass extends StatefulWidget {
@@ -15,12 +14,8 @@ class forgetpass extends StatefulWidget {
 }
 
 class forgetpassState extends State<forgetpass> {
-  static String realotp = '';
-  EmailOTP myauth = EmailOTP();
   GlobalKey<FormState> formkey = GlobalKey();
   TextEditingController Emailcontroller = TextEditingController();
-  TextEditingController otp = TextEditingController();
-  static String? emailAddress;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -39,16 +34,13 @@ class forgetpassState extends State<forgetpass> {
           child: Column(
             children: [
               Center(
-                child: Image.asset(
-                  "asset/image/forgetpass2.png",
-                  scale: 1.8,
-                ),
+                child: Image.asset("asset/image/forgetpass2.png", scale: 1.8),
               ),
               const Padding(
                 padding: EdgeInsets.only(left: 10, right: 10, bottom: 20),
                 child: Center(
                   child: Text(
-                    "Enter your registerd E-mail id",
+                    "Enter your registered E-mail id",
                     style: TextStyle(
                       fontFamily: "sans-serif",
                       fontSize: 20,
@@ -58,10 +50,7 @@ class forgetpassState extends State<forgetpass> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(
-                  left: 25,
-                  right: 25,
-                ),
+                padding: const EdgeInsets.only(left: 25, right: 25),
                 child: Form(
                   key: formkey,
                   child: TextFormField(
@@ -69,9 +58,10 @@ class forgetpassState extends State<forgetpass> {
                     validator: (value) {
                       if (value!.isEmpty) {
                         return 'Cannot left Blank!';
-                      } else if (!RegExp(r'[^0-9]+[a-zA-Z0-9]+@+gmail+\.+com')
-                          .hasMatch(value)) {
-                        return 'Please enter Valide email id';
+                      } else if (!RegExp(
+                        r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
+                      ).hasMatch(value)) {
+                        return 'Please enter Valid email id';
                       } else {
                         return null;
                       }
@@ -95,30 +85,30 @@ class forgetpassState extends State<forgetpass> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       enabledBorder: OutlineInputBorder(
-                          borderSide: const BorderSide(
-                            color: Color.fromARGB(255, 0, 0, 0),
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(15)),
+                        borderSide: const BorderSide(
+                          color: Color.fromARGB(255, 0, 0, 0),
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
                     ),
                   ),
                 ),
               ),
               Container(
-                margin: const EdgeInsets.only(
-                  top: 40,
-                ),
+                margin: const EdgeInsets.only(top: 40),
                 height: 50,
                 width: 280,
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
                 child: ElevatedButton(
                   // ignore: sort_child_properties_last
                   child: const Text(
-                    'GET-OTP',
+                    'SEND RESET LINK',
                     style: TextStyle(
-                        fontSize: 25,
-                        color: Color.fromARGB(255, 255, 255, 255),
-                        fontFamily: "mogra"),
+                      fontSize: 22,
+                      color: Color.fromARGB(255, 255, 255, 255),
+                      fontFamily: "mogra",
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: C.theamecolor,
@@ -128,49 +118,32 @@ class forgetpassState extends State<forgetpass> {
                   ),
                   onPressed: () async {
                     if (formkey.currentState!.validate()) {
-                      emailAddress = Emailcontroller.text;
-
-                      myauth.setConfig(
-                        appEmail: 'bs5776571@gmail.com',
-                        userEmail: Emailcontroller.text,
-                        appName: 'myBus',
-                        otpLength: 4,
-                        otpType: OTPType.digitsOnly,
-                      );
-                      WidgetsBinding.instance.addPostFrameCallback(
-                        (_) {
-                          showDialog(
-                            context: context,
-                            builder: (context) {
-                              return const LoadingDialog();
-                            },
-                          );
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) {
+                          return const LoadingDialog();
                         },
                       );
-                      if (await myauth.sendOTP() == true) {
-                        // realotp = myauth..toString();
-                        Navigator.of(context).pop();
+
+                      try {
+                        await FirebaseAuth.instance.sendPasswordResetEmail(
+                          email: Emailcontroller.text.trim(),
+                        );
+
+                        Navigator.pop(context); // Close loading dialog
                         Fluttertoast.showToast(
-                          msg: "OTP has been sent",
+                          msg: "Reset link sent! Check your email.",
                         );
-                        // ScaffoldMessenger.of(context).showSnackBar(
-                        //   SnackBar(
-                        //     content: Text(
-                        //       "OTP has been sent".toUpperCase(),
-                        //     ),
-                        //   ),
-                        // );
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const enterotp(),
-                          ),
-                        );
-                      } else {
-                        Navigator.of(context).pop();
+                        Navigator.pop(context); // Go back to Login
+                      } on FirebaseAuthException catch (e) {
+                        Navigator.pop(context); // Close loading dialog
                         Fluttertoast.showToast(
-                          msg: "Oops, OTP send failed",
+                          msg: e.message ?? "Error sending reset email",
                         );
+                      } catch (e) {
+                        Navigator.pop(context); // Close loading dialog
+                        Fluttertoast.showToast(msg: "An error occurred");
                       }
                     }
                   },

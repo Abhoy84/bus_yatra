@@ -19,6 +19,8 @@ import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ignore: must_be_immutable
 class busdetails extends StatefulWidget {
@@ -36,6 +38,10 @@ class _busdetailsState extends State<busdetails> {
   TextEditingController bustypecontroller = TextEditingController();
   TextEditingController busseatnocontroller = TextEditingController();
   TextEditingController busupdepotcontroller = TextEditingController();
+  TextEditingController uptimecontroller = TextEditingController();
+  TextEditingController downdepotcontroller = TextEditingController();
+  TextEditingController downtimecontroller = TextEditingController();
+  TextEditingController uptvtimecontroller = TextEditingController();
   TextEditingController ticketpricecontroller = TextEditingController();
   String status = '';
   GlobalKey<FormState> formkey = GlobalKey();
@@ -54,8 +60,396 @@ class _busdetailsState extends State<busdetails> {
     busseatnocontroller.text = admin.seatno;
     bustypecontroller.text = admin.type;
     busupdepotcontroller.text = admin.updepot;
+    uptimecontroller.text = admin.uptime;
+    downdepotcontroller.text = admin.downdepot;
+    downtimecontroller.text = admin.downtime;
+    uptvtimecontroller.text = admin.uptvtime;
     ticketpricecontroller.text = admin.ticketprice;
     statuscheck();
+    _fetchLatestData();
+  }
+
+  Future<void> _fetchLatestData() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
+
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('buses')
+          .doc(uid)
+          .get();
+      if (doc.exists) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            if (data.containsKey('seatno')) {
+              var s = data['seatno'];
+              admin.seatno = s.toString();
+              busseatnocontroller.text = admin.seatno;
+            }
+            // Refresh other fields if needed to ensure consistency
+            if (data.containsKey('busname')) admin.busname = data['busname'];
+            if (data.containsKey('regno')) admin.regno = data['regno'];
+            if (data.containsKey('type')) admin.type = data['type'];
+
+            // Update controllers just in case
+            busseatnocontroller.text = admin.seatno;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching latest bus data: $e");
+    }
+  }
+
+  Future<void> updateBusData(String field, String value) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const LoadingDialog();
+      },
+    );
+    try {
+      String? uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance.collection('buses').doc(uid).update({
+          field: value,
+        });
+
+        Navigator.pop(context);
+        Fluttertoast.showToast(msg: "Updated Successfully");
+        setState(() {
+          // Update local admin object so UI reflects changes immediately
+          if (field == 'name') admin.name = value;
+          if (field == 'busname') admin.busname = value;
+          if (field == 'regno') admin.regno = value;
+          // seatno is not editable
+          if (field == 'type') admin.type = value;
+          if (field == 'updepot') admin.updepot = value;
+          if (field == 'uptime') admin.uptime = value;
+          if (field == 'uptvtime') admin.uptvtime = value;
+          if (field == 'downdepot') admin.downdepot = value;
+          if (field == 'downtime') admin.downtime = value;
+          if (field == 'downtvtime') admin.downtvtime = value;
+          if (field == 'ticketprice') admin.ticketprice = value;
+          if (field == 'busstatus') admin.status = value;
+        });
+      } else {
+        Navigator.pop(context);
+        Fluttertoast.showToast(msg: "User not logged in");
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      Fluttertoast.showToast(msg: "Update Failed: $e");
+    }
+  }
+
+  void showEditDialog(
+    String title,
+    TextEditingController controller,
+    String fieldKey,
+  ) {
+    showDialog(
+      barrierDismissible: true,
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 23,
+              fontWeight: FontWeight.w700,
+              color: Color.fromARGB(255, 0, 0, 0),
+            ),
+          ),
+          actions: [
+            Form(
+              key:
+                  formkey, // Note: Sharing formKey might be risky if multiple dialogs open, but ok for modal
+              child: Container(
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: TextFormField(
+                  controller: controller,
+                  validator: (value) {
+                    if (value!.isEmpty) {
+                      return 'Cannot be empty!';
+                    } else {
+                      return null;
+                    }
+                  },
+                  decoration: const InputDecoration(
+                    contentPadding: EdgeInsets.only(bottom: 10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                if (formkey.currentState!.validate()) {
+                  Navigator.of(context).pop();
+                  updateBusData(fieldKey, controller.text);
+                }
+              },
+              child: const Text('Update', style: TextStyle(fontSize: 17)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showStatusReasonDialog() {
+    TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Reason for Deactivation"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Please specify why you are turning off the bus status.",
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: reasonController,
+                decoration: const InputDecoration(
+                  hintText: "Enter Reason",
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog without saving
+              },
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (reasonController.text.trim().isNotEmpty) {
+                  Navigator.pop(context);
+                  _updateStatusWithReason('0', reasonController.text.trim());
+                } else {
+                  Fluttertoast.showToast(msg: "Please enter a reason");
+                }
+              },
+              child: const Text("Deactivate"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _updateStatusWithReason(String newStatus, String reason) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const LoadingDialog();
+      },
+    );
+    try {
+      String? uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance.collection('buses').doc(uid).update({
+          'busstatus': newStatus,
+          'statusReason': reason,
+        });
+
+        Navigator.pop(context);
+        Fluttertoast.showToast(msg: "Status Updated Successfully");
+        setState(() {
+          admin.status = newStatus;
+          admin.statusReason = reason;
+          statuscheck();
+        });
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      Fluttertoast.showToast(msg: "Update Failed: $e");
+    }
+  }
+
+  void _showBusTypeEditDialog() {
+    String selectedType = admin.type.isEmpty ? "AC" : admin.type;
+    // Normalize logic if needed, assuming simple equality check works
+
+    showDialog(
+      context: context,
+      barrierDismissible: true, // Allow cancelling by clicking outside
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text(
+                "Select Bus Type",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text("AC"),
+                    value: "AC",
+                    groupValue: selectedType,
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedType = val!;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text("Non AC"),
+                    value: "Non AC",
+                    groupValue: selectedType,
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        selectedType = val!;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    updateBusData('type', selectedType);
+                  },
+                  child: const Text("Save"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showTimeEditDialog(String fieldKey) async {
+    TimeOfDay initialTime = TimeOfDay.now();
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: C.theamecolor,
+            colorScheme: ColorScheme.light(primary: C.theamecolor),
+            buttonTheme: const ButtonThemeData(
+              textTheme: ButtonTextTheme.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      // 12-hour format: 10:30 AM
+      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+      final minute = picked.minute.toString().padLeft(2, '0');
+      final period = picked.period == DayPeriod.am ? 'am' : 'pm';
+      final formattedTime = "$hour:$minute $period";
+
+      updateBusData(fieldKey, formattedTime);
+    }
+  }
+
+  void _showTravelTimeEditDialog(String fieldKey) {
+    TextEditingController hoursController = TextEditingController();
+    TextEditingController minsController = TextEditingController();
+
+    // Attempt to pre-fill if data exists in format "X Hours Y Mins"
+    // This is optional but nice for UX.
+    // Assuming format "5 Hours 30 Mins"
+    try {
+      String currentVal = (fieldKey == 'uptvtime')
+          ? admin.uptvtime
+          : admin.downtvtime; // handle both if needed later
+      // currentVal = admin.uptvtime; // simplified
+      if (currentVal.isNotEmpty) {
+        final parts = currentVal.split(' ');
+        if (parts.length >= 4) {
+          hoursController.text = parts[0];
+          minsController.text = parts[2];
+        }
+      }
+    } catch (_) {}
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Enter Travel Time"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: hoursController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Hours",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: minsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: "Mins",
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                String hours = hoursController.text.trim();
+                String mins = minsController.text.trim();
+
+                if (hours.isEmpty) hours = "0";
+                if (mins.isEmpty) mins = "0";
+
+                String formattedDuration = "$hours Hours $mins Mins";
+                Navigator.pop(context);
+                updateBusData(fieldKey, formattedDuration);
+              },
+              child: const Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void statuscheck() {
@@ -71,843 +465,335 @@ class _busdetailsState extends State<busdetails> {
 
   bool type = true;
 
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: C.textfromcolor,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+  Widget _buildInfoTile({
+    required String label,
+    required String value,
+    VoidCallback? onEdit,
+    bool isEditable = true,
+    IconData icon = Icons.info_outline,
+    Color? backgroundColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      child: InkWell(
+        onTap: isEditable ? onEdit : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          backgroundColor: C.theamecolor,
-          title: Text(
-            "Bus details",
-            style: TextStyle(color: C.textfromcolor),
-          ),
-          centerTitle: true,
-          actions: [
-            TextButton(
-              child: type
-                  ? Icon(
-                      Icons.toggle_on_rounded,
-                      color: Colors.white,
-                      size: 50,
-                    )
-                  : Icon(
-                      Icons.toggle_off_rounded,
-                      color: Colors.white,
-                      size: 50,
-                    ),
-              onPressed: () {
-                statuschange(admin.regno).whenComplete(() {
-                  setState(
-                    () {
-                      type = !type;
-                      statuscheck();
-                    },
-                  );
-                });
-              },
-            ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          child: Container(
-            child: Column(
-              children: [
-                Stack(
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: C.theamecolor, size: 24),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: EdgeInsets.only(top: 255, left: 20, right: 20),
-                      decoration: BoxDecoration(
-                        color: Color.fromARGB(255, 233, 230, 230),
-                      ),
-                      // height: MediaQuery.of(context).size.height,
-                      alignment: Alignment.center,
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: EdgeInsets.only(top: 8, left: 10),
-                            alignment: Alignment.topLeft,
-                            margin: EdgeInsets.symmetric(vertical: 10),
-                            // height: 650,
-                            width: MediaQuery.of(context).size.width,
-                            decoration: BoxDecoration(
-                              color: Color.fromARGB(255, 255, 255, 255),
-                              borderRadius: BorderRadius.circular(15),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color.fromARGB(255, 105, 105, 105)
-                                      .withOpacity(0.5),
-                                  spreadRadius: 3,
-                                  blurRadius: 5,
-                                  // ignore: prefer_const_constructors.
-                                  offset: Offset(2, 2),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  width: 265,
-                                  child: const Text(
-                                    "Bus Name",
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 220,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.busname,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        setState(() {});
-                                        showDialog(
-                                          barrierDismissible: true,
-                                          context: context,
-                                          builder: (context) {
-                                            return AlertDialog(
-                                              title: const Text(
-                                                'Enter Bus Name',
-                                                style: TextStyle(
-                                                    fontSize: 23,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: Color.fromARGB(
-                                                        255, 0, 0, 0)),
-                                              ),
-                                              actions: [
-                                                Form(
-                                                  key: formkey,
-                                                  child: Container(
-                                                      height: 30,
-                                                      padding:
-                                                          EdgeInsets.symmetric(
-                                                              horizontal: 30),
-                                                      child: TextFormField(
-                                                        validator: (value) {
-                                                          if (value!.isEmpty) {
-                                                            return 'Cannot left Blank!';
-                                                          } else {
-                                                            return null;
-                                                          }
-                                                        },
-                                                        autovalidateMode:
-                                                            AutovalidateMode
-                                                                .onUserInteraction,
-                                                        controller:
-                                                            busnamecontroller,
-                                                      )),
-                                                ),
-                                                SizedBox(
-                                                  height: 20,
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.of(context).pop();
-                                                    if (formkey.currentState!
-                                                        .validate()) {
-                                                      busnameupdate(
-                                                          admin.regno,
-                                                          busnamecontroller
-                                                              .text);
-                                                    }
-
-                                                    //
-                                                  },
-                                                  child: const Text(
-                                                    'OK',
-                                                    style:
-                                                        TextStyle(fontSize: 17),
-                                                  ),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.edit_outlined,
-                                        color: Color.fromARGB(255, 16, 7, 45),
-                                        size: 25,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  width: 265,
-                                  padding: const EdgeInsets.only(bottom: 5),
-                                  child: const Text(
-                                    "Reg.No.",
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        color: Color.fromARGB(255, 16, 7, 45)),
-                                    textAlign: TextAlign.left,
-                                  ),
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 265,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.regno,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 185,
-                                      child: const Text(
-                                        "Bus Type",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 80,
-                                      child: const Text(
-                                        "Seat no.",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 185,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.type,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 80,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.seatno,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 185,
-                                      child: const Text(
-                                        "Up Depot",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 80,
-                                      child: const Text(
-                                        "Time",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 185,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.updepot,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 80,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.uptime,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 185,
-                                      child: const Text(
-                                        "Down Depot",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 80,
-                                      child: const Text(
-                                        "Time",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 185,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.downdepot,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 80,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: Text(
-                                        admin.downtime,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(
-                                  height: 10,
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 185,
-                                      child: const Text(
-                                        "Traveling Time",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 5),
-                                      width: 80,
-                                      child: const Text(
-                                        "Status",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 185,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 15),
-                                      child: Text(
-                                        admin.uptvtime,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 80,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 15),
-                                      child: Text(
-                                        status,
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(bottom: 0),
-                                      width: 265,
-                                      child: const Text(
-                                        "Ticket Price",
-                                        style: TextStyle(
-                                            fontSize: 15,
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45)),
-                                        textAlign: TextAlign.left,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 185,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 20),
-                                      child: Text(
-                                        "₹ ${admin.ticketprice}",
-                                        style: TextStyle(
-                                            color:
-                                                Color.fromARGB(255, 16, 7, 45),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 80,
-                                      padding:
-                                          const EdgeInsets.only(bottom: 10),
-                                      child: IconButton(
-                                        onPressed: () {
-                                          setState(() {});
-                                          showDialog(
-                                            barrierDismissible: true,
-                                            context: context,
-                                            builder: (context) {
-                                              return AlertDialog(
-                                                title: const Text(
-                                                  'Enter Amount here!',
-                                                  style: TextStyle(
-                                                      fontSize: 23,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Color.fromARGB(
-                                                          255, 0, 0, 0)),
-                                                ),
-                                                actions: [
-                                                  Form(
-                                                    key: formkey,
-                                                    child: Container(
-                                                        height: 30,
-                                                        padding: EdgeInsets
-                                                            .symmetric(
-                                                                horizontal: 30),
-                                                        child: TextFormField(
-                                                          keyboardType:
-                                                              TextInputType
-                                                                  .number,
-                                                          validator: (value) {
-                                                            if (value!
-                                                                .isEmpty) {
-                                                              return 'Cannot left Blank!';
-                                                            } else {
-                                                              return null;
-                                                            }
-                                                          },
-                                                          autovalidateMode:
-                                                              AutovalidateMode
-                                                                  .onUserInteraction,
-                                                          controller:
-                                                              ticketpricecontroller,
-                                                        )),
-                                                  ),
-                                                  SizedBox(
-                                                    height: 20,
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      Navigator.of(context)
-                                                          .pop();
-
-                                                      if (formkey.currentState!
-                                                          .validate()) {
-                                                        Ticketpriceupdate(
-                                                            admin.regno,
-                                                            ticketpricecontroller
-                                                                .text);
-                                                      }
-
-                                                      //
-                                                    },
-                                                    child: const Text(
-                                                      'Change',
-                                                      style: TextStyle(
-                                                          fontSize: 17),
-                                                    ),
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          );
-                                        },
-                                        icon: const Icon(
-                                          Icons.edit_outlined,
-                                          color: Color.fromARGB(255, 16, 7, 45),
-                                          size: 25,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: C.theamecolor, width: 5),
-                          right: BorderSide(),
-                        ),
-                        color: C.theamecolor,
-                      ),
-                      alignment: Alignment.center,
-                      child: Image.asset(
-                        "asset/image/bus48.jpg",
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      top: 120,
-                      left: 5,
-                      child: pickedbusImage != null
-                          ? CircleAvatar(
-                              radius: 65,
-                              backgroundColor: Color.fromARGB(255, 8, 4, 49),
-                              child: CircleAvatar(
-                                backgroundImage: FileImage(pickedbusImage!),
-                                radius: 60,
-                              ),
-                            )
-                          : CircleAvatar(
-                              radius: 65,
-                              backgroundColor: Colors.black,
-                              child: CircleAvatar(
-                                radius: 60,
-                                backgroundColor:
-                                    const Color.fromARGB(255, 212, 182, 182),
-                                backgroundImage: NetworkImage(
-                                  MyUrl.fullurl +
-                                      MyUrl.busimageurl +
-                                      admin.busimage,
-                                ),
-                              ),
-                            ),
-                    ),
-                    Positioned(
-                      top: 210,
-                      left: 95,
-                      child: CircleAvatar(
-                        radius: 18,
-                        backgroundColor: C.theamecolor,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.add_a_photo,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                          onPressed: () async {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text("Choose Profile Pic"),
-                                content: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      TextButton.icon(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                          pickImage(ImageSource.camera)
-                                              .whenComplete(() {
-                                            if (pickedbusImage != null) {
-                                              busPicUpload(
-                                                  pickedbusImage!, admin.regno);
-                                            }
-                                          });
-                                        },
-                                        icon: Icon(
-                                          Icons.camera,
-                                          size: 40,
-                                        ),
-                                        label: Text(
-                                          "Camera",
-                                          style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 20),
-                                        ),
-                                      ),
-                                      TextButton.icon(
-                                        onPressed: () {
-                                          Navigator.of(context).pop();
-                                          pickImage(ImageSource.gallery)
-                                              .whenComplete(() {
-                                            if (pickedbusImage != null) {
-                                              busPicUpload(
-                                                  pickedbusImage!, admin.regno);
-                                            }
-                                          });
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent,
-                                            shadowColor: Colors.transparent),
-                                        icon: Icon(
-                                          Icons.photo_library_outlined,
-                                          size: 40,
-                                        ),
-                                        label: Text(
-                                          "Gallery",
-                                          style: TextStyle(
-                                              color: Colors.black,
-                                              fontSize: 20),
-                                        ),
-                                      ),
-                                      Text(
-                                        "Please try to upload a PNG file!*",
-                                        style: TextStyle(color: Colors.red),
-                                      )
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              if (isEditable)
+                Icon(Icons.edit, color: Colors.grey.shade400, size: 18),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Future<void> statuschange(String regno) async {
-    Map data = {
-      "regno": regno,
-    };
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const LoadingDialog();
-      },
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 12, top: 20),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
+        ),
+      ),
     );
-    try {
-      var response = await http
-          .post(Uri.parse("${MyUrl.fullurl}status_change.php"), body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == 'true') {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-        admin.status = jsondata['st'];
-        setState(() {});
-      } else {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
   }
 
-  Future<void> busnameupdate(String regno, String busname) async {
-    Map data = {
-      "regno": regno,
-      "busname": busname,
-    };
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const LoadingDialog();
-      },
-    );
-    try {
-      var response = await http
-          .post(Uri.parse("${MyUrl.fullurl}busname_update.php"), body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-        admin.busname = jsondata['newname'];
-        setState(() {});
-      } else {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        backgroundColor: C.theamecolor,
+        title: const Text(
+          "Bus Details",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12.0),
+            child: Row(
+              children: [
+                Text(
+                  type ? "Active" : "Inactive",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Switch(
+                  value: type,
+                  activeColor: Colors.greenAccent,
+                  activeTrackColor: Colors.white24,
+                  inactiveThumbColor: Colors.grey,
+                  inactiveTrackColor: Colors.white24,
+                  onChanged: (val) {
+                    if (val) {
+                      // Turning ON
+                      updateBusData('busstatus', '1').whenComplete(() {
+                        statuscheck();
+                      });
+                    } else {
+                      // Turning OFF - Ask for reason
+                      _showStatusReasonDialog();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader("Basic Information"),
 
-  Future<void> Ticketpriceupdate(String regno, String price) async {
-    Map data = {
-      "regno": regno,
-      "price": price,
-    };
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return const LoadingDialog();
-      },
+              _buildInfoTile(
+                label: "Bus Name",
+                value: admin.busname,
+                icon: Icons.directions_bus,
+                onEdit: () => showEditDialog(
+                  "Enter Bus Name",
+                  busnamecontroller,
+                  'busname',
+                ),
+              ),
+
+              _buildInfoTile(
+                label: "Registration No.",
+                value: admin.regno,
+                icon: Icons.confirmation_number_outlined,
+                onEdit: () => showEditDialog(
+                  "Enter Reg Name",
+                  busregnocontroller,
+                  'regno',
+                ),
+              ),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6.0),
+                      child: _buildInfoTile(
+                        label: "Bus Type",
+                        value: admin.type,
+                        icon: Icons.category_outlined,
+                        onEdit: () => _showBusTypeEditDialog(),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6.0),
+                      child: _buildInfoTile(
+                        label: "Seat Capacity",
+                        value: "${admin.seatno} Seats",
+                        icon: Icons.event_seat_outlined,
+                        isEditable: false,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              _buildSectionHeader("Route Details"),
+
+              // UP ROUTE
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F8FF), // Light Blue
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.arrow_upward,
+                          size: 16,
+                          color: Colors.black87,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "UP Route",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoTile(
+                      label: "From Depot",
+                      value: admin.updepot.split(',').first,
+                      icon: Icons.location_on_outlined,
+                      onEdit: () => showEditDialog(
+                        "Up Depot",
+                        busupdepotcontroller,
+                        'updepot',
+                      ),
+                    ),
+                    _buildInfoTile(
+                      label: "Departure",
+                      value: admin.uptime,
+                      icon: Icons.access_time,
+                      onEdit: () => _showTimeEditDialog('uptime'),
+                    ),
+                  ],
+                ),
+              ),
+
+              // DOWN ROUTE
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF5E6), // Light Orange
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.arrow_downward,
+                          size: 16,
+                          color: Colors.deepOrange,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "DOWN Route",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepOrange.shade400,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildInfoTile(
+                      label: "From Depot",
+                      value: admin.downdepot.split(',').first,
+                      icon: Icons.location_on_outlined,
+                      onEdit: () => showEditDialog(
+                        "Down Depot",
+                        downdepotcontroller,
+                        'downdepot',
+                      ),
+                    ),
+                    _buildInfoTile(
+                      label: "Departure",
+                      value: admin.downtime,
+                      icon: Icons.access_time,
+                      onEdit: () => _showTimeEditDialog('downtime'),
+                    ),
+                  ],
+                ),
+              ),
+
+              _buildInfoTile(
+                label: "Total Travel Time",
+                value: admin.uptvtime,
+                icon: Icons.timer_outlined,
+                onEdit: () => _showTravelTimeEditDialog('uptvtime'),
+              ),
+
+              _buildSectionHeader("Pricing"),
+              _buildInfoTile(
+                label: "Ticket Price",
+                value: "₹ ${admin.ticketprice}",
+                icon: Icons.currency_rupee,
+                onEdit: () => showEditDialog(
+                  "Enter Amount",
+                  ticketpricecontroller,
+                  'ticketprice',
+                ),
+              ),
+
+              const SizedBox(height: 30),
+            ],
+          ),
+        ),
+      ),
     );
-    try {
-      var response = await http.post(
-          Uri.parse("${MyUrl.fullurl}ticket_price_update.php"),
-          body: data);
-      var jsondata = jsonDecode(response.body);
-      if (jsondata["status"] == true) {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-        admin.ticketprice = jsondata['newprice'];
-        setState(() {});
-      } else {
-        Navigator.pop(context);
-        Fluttertoast.showToast(
-          msg: jsondata['msg'],
-        );
-      }
-    } catch (e) {
-      Navigator.pop(context);
-      Fluttertoast.showToast(
-        msg: e.toString(),
-      );
-    }
   }
 
   Future pickImage(ImageSource imageType) async {
     try {
-      final photo =
-          await ImagePicker().pickImage(source: imageType, imageQuality: 50);
+      final photo = await ImagePicker().pickImage(
+        source: imageType,
+        imageQuality: 50,
+      );
       if (photo == null) return;
       final tempImage = File(photo.path);
       setState(() {
@@ -932,10 +818,16 @@ class _busdetailsState extends State<busdetails> {
 
     try {
       var request = http.MultipartRequest(
-          "POST", Uri.parse("${MyUrl.fullurl}bus_pic.php"));
-      request.files.add(http.MultipartFile.fromBytes(
-          'busimage', busphoto.readAsBytesSync(),
-          filename: busphoto.path.split("/").last));
+        "POST",
+        Uri.parse("${MyUrl.fullurl}bus_pic.php"),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'busimage',
+          busphoto.readAsBytesSync(),
+          filename: busphoto.path.split("/").last,
+        ),
+      );
       request.fields['regno'] = regno;
 
       var response = await request.send();
@@ -966,10 +858,7 @@ class _busdetailsState extends State<busdetails> {
       }
     } catch (e) {
       Navigator.pop(context);
-      Fluttertoast.showToast(
-        gravity: ToastGravity.CENTER,
-        msg: e.toString(),
-      );
+      Fluttertoast.showToast(gravity: ToastGravity.CENTER, msg: e.toString());
     }
   }
 }

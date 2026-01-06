@@ -42,6 +42,18 @@ class _SignupState extends State<Signup> {
       },
     );
     try {
+      // Check for duplicate phone number
+      QuerySnapshot phoneSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('phone', isEqualTo: phone)
+          .get();
+
+      if (phoneSnapshot.docs.isNotEmpty) {
+        Navigator.pop(context);
+        Fluttertoast.showToast(msg: "Phone number already registered!");
+        return;
+      }
+
       // Create user in Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);

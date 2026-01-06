@@ -10,6 +10,8 @@ import 'package:ticketbooking/pages/loadingdialoge.dart';
 import 'package:ticketbooking/pages/forgetpass.dart';
 import 'package:ticketbooking/pages/sign.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:ticketbooking/models/adminmodel.dart';
+import 'package:ticketbooking/pages/adminhomepage.dart';
 import 'package:ticketbooking/pages/splashscreen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
@@ -401,13 +403,105 @@ class _LoginState extends State<Login> {
                                   right: 10,
                                 ),
                                 child: TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pushReplacement(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const Adminlogin(),
-                                      ),
-                                    );
+                                  onPressed: () async {
+                                    // Check if user is already logged in
+                                    if (auth
+                                            .FirebaseAuth
+                                            .instance
+                                            .currentUser !=
+                                        null) {
+                                      showDialog(
+                                        context: context,
+                                        barrierDismissible: false,
+                                        builder: (context) {
+                                          return const LoadingDialog();
+                                        },
+                                      );
+
+                                      try {
+                                        String uid = auth
+                                            .FirebaseAuth
+                                            .instance
+                                            .currentUser!
+                                            .uid;
+                                        DocumentSnapshot doc =
+                                            await FirebaseFirestore.instance
+                                                .collection('buses')
+                                                .doc(uid)
+                                                .get();
+
+                                        if (doc.exists) {
+                                          Map<String, dynamic> data =
+                                              doc.data()
+                                                  as Map<String, dynamic>;
+
+                                          Admin admin = Admin(
+                                            name: data['name'] ?? '',
+                                            phone: data['phone'] ?? '',
+                                            email: data['email'] ?? '',
+                                            passcode: data['passcode'] ?? '',
+                                            busname: data['busname'] ?? '',
+                                            regno: data['regno'] ?? '',
+                                            seatno: data['seatno'].toString(),
+                                            type: data['type'] ?? '',
+                                            updepot: data['updepot'] ?? '',
+                                            uptime: data['uptime'] ?? '',
+                                            uptvtime: data['uptvtime'] ?? '',
+                                            downdepot: data['downdepot'] ?? '',
+                                            downtime: data['downtime'] ?? '',
+                                            downtvtime:
+                                                data['downtvtime'] ?? '',
+                                            status:
+                                                data['busstatus'] ?? 'active',
+                                            ticketprice:
+                                                data['ticketprice'] ?? '',
+                                            busimage: data['busimage'] ?? '',
+                                          );
+
+                                          Navigator.pop(
+                                            context,
+                                          ); // Close dialog
+                                          Navigator.of(context).pushReplacement(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  adminhome(admin),
+                                            ),
+                                          );
+                                        } else {
+                                          Navigator.pop(
+                                            context,
+                                          ); // Close dialog
+                                          // Logged in user is not an admin, proceed to Admin Login page
+                                          // Consider if we should sign out current user?
+                                          // For now, just go to Admin Login, which handles its own auth.
+                                          Navigator.of(context).pushReplacement(
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const Adminlogin(),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        Navigator.pop(context);
+                                        Fluttertoast.showToast(
+                                          msg:
+                                              "Error checking login status ${e.toString()}",
+                                        );
+                                        Navigator.of(context).pushReplacement(
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const Adminlogin(),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      Navigator.of(context).pushReplacement(
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const Adminlogin(),
+                                        ),
+                                      );
+                                    }
                                   },
                                   child: const Text(
                                     "click",

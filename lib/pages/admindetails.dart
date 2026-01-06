@@ -3,13 +3,14 @@ import 'package:get/get.dart';
 import 'package:ticketbooking/controller/app_controller.dart';
 import 'package:ticketbooking/models/adminmodel.dart';
 import 'package:ticketbooking/pages/color.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 // ignore: must_be_immutable
 class admindetails extends StatelessWidget {
   final Admin admin;
   admindetails(this.admin, {super.key});
 
-  final AppController controller = Get.find<AppController>();
+  final AppController controller = Get.put(AppController());
   final GlobalKey<FormState> formkey = GlobalKey();
 
   // Observable booleans for enabling editing
@@ -147,7 +148,10 @@ class admindetails extends StatelessWidget {
                                         return "At least 4 numbers";
                                       return null;
                                     },
-                                    inputType: TextInputType.number,
+                                    inputType: TextInputType.visiblePassword,
+                                    obscureText: controller.isPasswordVisible,
+                                    onToggleVisibility:
+                                        controller.togglePasswordVisibility,
                                   ),
 
                                   // Confirm Passcode Field
@@ -163,9 +167,12 @@ class admindetails extends StatelessWidget {
                                         return 'Passwords do not match';
                                       return null;
                                     },
-                                    inputType: TextInputType.number,
-                                    showEditButton:
-                                        false, // No edit button needed here as it shares state with passcode
+                                    inputType: TextInputType.visiblePassword,
+                                    showEditButton: false,
+                                    obscureText:
+                                        controller.isConfirmPasswordVisible,
+                                    onToggleVisibility: controller
+                                        .toggleConfirmPasswordVisibility,
                                   ),
                                 ],
                               ),
@@ -201,12 +208,26 @@ class admindetails extends StatelessWidget {
                                     if (controller.isLoading.value) return;
 
                                     if (formkey.currentState!.validate()) {
-                                      controller.updateAdminProfile(
-                                        name: adminnamecontroller.text,
-                                        phone: adminphonecontroller.text,
-                                        email: adminemailcontroller.text,
-                                        passcode: adminpasscodecontroller.text,
-                                      );
+                                      // Check if passcode is modified
+                                      if (adminpasscodecontroller.text !=
+                                          admin.passcode) {
+                                        _showCurrentPasswordDialog(
+                                          context,
+                                          adminnamecontroller.text,
+                                          adminphonecontroller.text,
+                                          adminemailcontroller.text,
+                                          adminpasscodecontroller.text,
+                                        );
+                                      } else {
+                                        // Passcode unchanged, proceed directly
+                                        controller.updateAdminProfile(
+                                          name: adminnamecontroller.text,
+                                          phone: adminphonecontroller.text,
+                                          email: adminemailcontroller.text,
+                                          passcode:
+                                              adminpasscodecontroller.text,
+                                        );
+                                      }
                                     }
                                   },
                                 ),
@@ -281,6 +302,8 @@ class admindetails extends StatelessWidget {
     String? Function(String?)? validator,
     TextInputType inputType = TextInputType.name,
     bool showEditButton = true,
+    RxBool? obscureText,
+    VoidCallback? onToggleVisibility,
   }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -291,6 +314,8 @@ class admindetails extends StatelessWidget {
           child: Obx(
             () => TextFormField(
               enabled: enabled.value,
+              // If obscureText is provided, use its value. Otherwise false.
+              obscureText: obscureText?.value ?? false,
               style: const TextStyle(
                 color: Color.fromARGB(255, 255, 255, 255),
                 fontWeight: FontWeight.bold,
@@ -307,6 +332,17 @@ class admindetails extends StatelessWidget {
                   icon,
                   color: const Color.fromARGB(255, 255, 255, 255),
                 ),
+                suffixIcon: onToggleVisibility != null
+                    ? IconButton(
+                        icon: Icon(
+                          (obscureText?.value ?? false)
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.white70,
+                        ),
+                        onPressed: onToggleVisibility,
+                      )
+                    : null,
                 enabledBorder: const UnderlineInputBorder(
                   borderSide: BorderSide(
                     color: Color.fromARGB(255, 255, 255, 255),
@@ -336,6 +372,62 @@ class admindetails extends StatelessWidget {
         else
           const SizedBox(width: 48), // Spacer to keep alignment
       ],
+    );
+  }
+
+  void _showCurrentPasswordDialog(
+    BuildContext context,
+    String name,
+    String phone,
+    String email,
+    String newPasscode,
+  ) {
+    TextEditingController currentPassController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Confirm Change"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Enter your CURRENT password to confirm changes."),
+              const SizedBox(height: 10),
+              TextField(
+                controller: currentPassController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: "Current Password",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (currentPassController.text == admin.passcode) {
+                  Navigator.pop(context); // Close Dialog
+                  // Proceed with Update
+                  controller.updateAdminProfile(
+                    name: name,
+                    phone: phone,
+                    email: email,
+                    passcode: newPasscode,
+                  );
+                } else {
+                  Fluttertoast.showToast(msg: "Incorrect Current Password!");
+                }
+              },
+              child: const Text("Confirm"),
+            ),
+          ],
+        );
+      },
     );
   }
 }
