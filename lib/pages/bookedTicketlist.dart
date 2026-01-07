@@ -46,7 +46,7 @@ class bookedticketlistState extends State<bookedticketlist> {
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
-            Navigator.pop(context);
+            // Navigator.pop(context);
           },
           icon: Icon(Icons.home, color: C.textfromcolor),
         ),

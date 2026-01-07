@@ -35,7 +35,7 @@ class historyticketlistState extends State<historyticketlist> {
         leading: IconButton(
           onPressed: () {
             Navigator.pop(context);
-            Navigator.pop(context);
+            // Navigator.pop(context);
           },
           icon: Icon(Icons.home, color: C.textfromcolor),
         ),

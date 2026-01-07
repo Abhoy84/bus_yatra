@@ -146,313 +146,334 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA), // Very light cool grey
+        backgroundColor: Colors.grey[100],
         drawer: Navbar(user),
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: C.theamecolor,
+          iconTheme: const IconThemeData(color: Colors.white),
+          title: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: NetworkImage(
+                  MyUrl.fullurl + MyUrl.imageurl + user.image,
+                ),
+                onBackgroundImageError: (_, __) =>
+                    const Icon(Icons.person, color: Colors.white),
+                backgroundColor: Colors.white.withOpacity(0.2),
+                child: user.image.isEmpty
+                    ? const Icon(Icons.person, size: 20, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Hello, ${user.fname.split(' ')[0]}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Text(
+                    "Where to next?",
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: () {},
+            ),
+          ],
+        ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. HEADER SECTION
-              Stack(
-                children: [
-                  Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      color: C.theamecolor,
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                    ),
+              // 1. Search Planner "Card" - overlapping the colorful header if we wanted,
+              // but for now let's keep it simple and clean below the appbar.
+              Container(
+                decoration: BoxDecoration(
+                  color: C.theamecolor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 20,
-                      right: 20,
-                      top: 20,
-                      bottom: 20,
-                    ),
-                    child: Column(
+                ),
+                padding: const EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: 40,
+                  top: 10,
+                ),
+                child: Column(
+                  children: [
+                    Stack(
                       children: [
-                        // AppBar content manually placed for layout control
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Builder(
-                              builder: (context) => IconButton(
-                                icon: const Icon(
-                                  Icons.menu,
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                                onPressed: () =>
-                                    Scaffold.of(context).openDrawer(),
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      "Hello, ${user.fname.split(' ')[0]}",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const Text(
-                                      "Ready to travel?",
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(width: 10),
-                                Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.3),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 20,
-                                    backgroundImage: NetworkImage(
-                                      MyUrl.fullurl +
-                                          MyUrl.imageurl +
-                                          user.image,
-                                    ),
-                                    onBackgroundImageError: (_, __) =>
-                                        const Icon(
-                                          Icons.person,
-                                          color: Colors.white,
-                                        ),
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.2,
-                                    ),
-                                    child: user.image.isEmpty
-                                        ? const Icon(
-                                            Icons.person,
-                                            size: 20,
-                                            color: Colors.white,
-                                          )
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                        // 2. SEARCH CARD
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(25),
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.blueGrey.withOpacity(0.15),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
                               ),
                             ],
                           ),
-                          padding: const EdgeInsets.all(20),
                           child: Column(
                             children: [
-                              // Inputs Stack
-                              Stack(
-                                children: [
-                                  Column(
-                                    children: [
-                                      // FROM Field
-                                      _buildLocationInput(
-                                        controller: updepotsearchController,
-                                        hint: "From",
-                                        icon: Icons.my_location,
-                                        isUp: true,
-                                      ),
-                                      const SizedBox(height: 15),
-                                      // TO Field
-                                      _buildLocationInput(
-                                        controller: downdepotsearchController,
-                                        hint: "To",
-                                        icon: Icons.location_on,
-                                        isUp: false,
-                                      ),
-                                    ],
+                              // FROM Input
+                              Padding(
+                                padding: const EdgeInsets.all(5),
+                                child: Autocomplete(
+                                  key: keyUp,
+                                  initialValue: TextEditingValue(
+                                    text: updepotsearchController.text,
                                   ),
-                                  // Floating Swap Button
-                                  Positioned(
-                                    right: 40,
-                                    top: 38, // Adjusted for spacing
-                                    child: InkWell(
-                                      onTap: _swapLocations,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.grey.withOpacity(
-                                                0.3,
-                                              ),
-                                              blurRadius: 5,
-                                              offset: const Offset(0, 2),
+                                  optionsBuilder:
+                                      (TextEditingValue textEditingValue) {
+                                        if (textEditingValue.text == '') {
+                                          return Iterable<String>.empty();
+                                        }
+                                        return Depotlist.where((String item) {
+                                          return item.toLowerCase().contains(
+                                            textEditingValue.text.toLowerCase(),
+                                          );
+                                        });
+                                      },
+                                  onSelected: (String item) {
+                                    updepotsearchController.text = item;
+                                  },
+                                  fieldViewBuilder:
+                                      (
+                                        context,
+                                        controller,
+                                        focusNode,
+                                        onEditingComplete,
+                                      ) {
+                                        // Sync logic
+                                        if (controller.text !=
+                                            updepotsearchController.text) {
+                                          controller.text =
+                                              updepotsearchController.text;
+                                        }
+                                        updepotsearchController = controller;
+
+                                        return TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          onEditingComplete: onEditingComplete,
+                                          decoration: InputDecoration(
+                                            prefixIcon: Icon(
+                                              Icons.my_location,
+                                              color: C.theamecolor,
                                             ),
-                                          ],
-                                          border: Border.all(
-                                            color: Colors.grey[100]!,
+                                            hintText: "From City",
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 15,
+                                                ),
                                           ),
-                                        ),
-                                        child: Icon(
-                                          Icons.swap_vert_rounded,
-                                          color: C.theamecolor,
-                                          size: 24,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 15),
-                              // Date Selection
-                              InkWell(
-                                onTap: () async {
-                                  DateTime? pickdate = await showDatePicker(
-                                    context: context,
-                                    initialDate: DateTime.now(),
-                                    firstDate: DateTime.now(),
-                                    lastDate: DateTime(2050),
-                                  );
-                                  if (pickdate != null) {
-                                    setState(() {
-                                      viewdate =
-                                          "  ${DateFormat('yMMMEd').format(pickdate)}";
-                                      showdate =
-                                          "${DateFormat('yMd').format(pickdate)}";
-                                    });
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 15,
-                                    vertical: 15,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[100],
-                                    borderRadius: BorderRadius.circular(15),
-                                    border: Border.all(
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.calendar_today_rounded,
-                                        color: Colors.grey[600],
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          const Text(
-                                            "Journey Date",
-                                            style: TextStyle(
-                                              color: Colors.grey,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                          Text(
-                                            viewdate?.trim() ?? "Select Date",
-                                            style: TextStyle(
-                                              color: Colors.grey[800],
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                        );
+                                      },
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              // Search Button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: C.theamecolor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    elevation: 8,
-                                    shadowColor: C.theamecolor.withOpacity(0.5),
+                              const Divider(height: 1),
+                              // TO Input
+                              Padding(
+                                padding: const EdgeInsets.all(5),
+                                child: Autocomplete(
+                                  key: keyDown,
+                                  initialValue: TextEditingValue(
+                                    text: downdepotsearchController.text,
                                   ),
-                                  onPressed: () async {
-                                    if (formkey.currentState!.validate() ||
-                                        (updepotsearchController
-                                                .text
-                                                .isNotEmpty &&
-                                            downdepotsearchController
-                                                .text
-                                                .isNotEmpty)) {
-                                      sp =
-                                          await SharedPreferences.getInstance();
-                                      sp.setString(
-                                        'pickuppoint',
-                                        updepotsearchController.text,
-                                      );
-                                      sp.setString(
-                                        'destination',
-                                        downdepotsearchController.text,
-                                      );
-
-                                      setState(() {});
-
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const buslistpage(),
-                                        ),
-                                      );
-                                    } else {
-                                      Fluttertoast.showToast(
-                                        msg: "Please select both locations",
-                                      );
-                                    }
+                                  optionsBuilder:
+                                      (TextEditingValue textEditingValue) {
+                                        if (textEditingValue.text == '') {
+                                          return Iterable<String>.empty();
+                                        }
+                                        return Depotlist.where((String item) {
+                                          return item.toLowerCase().contains(
+                                            textEditingValue.text.toLowerCase(),
+                                          );
+                                        });
+                                      },
+                                  onSelected: (String item) {
+                                    downdepotsearchController.text = item;
                                   },
-                                  child: const Text(
-                                    'SEARCH BUSES',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
+                                  fieldViewBuilder:
+                                      (
+                                        context,
+                                        controller,
+                                        focusNode,
+                                        onEditingComplete,
+                                      ) {
+                                        // Sync logic
+                                        if (controller.text !=
+                                            downdepotsearchController.text) {
+                                          controller.text =
+                                              downdepotsearchController.text;
+                                        }
+                                        downdepotsearchController = controller;
+
+                                        return TextField(
+                                          controller: controller,
+                                          focusNode: focusNode,
+                                          onEditingComplete: onEditingComplete,
+                                          decoration: InputDecoration(
+                                            prefixIcon: Icon(
+                                              Icons.location_on,
+                                              color: C.theamecolor,
+                                            ),
+                                            hintText: "To City",
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 15,
+                                                ),
+                                          ),
+                                        );
+                                      },
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                        // Swap Button
+                        Positioned(
+                          right: 20,
+                          top: 45, // Halfway roughly
+                          child: InkWell(
+                            onTap: _swapLocations,
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: C.theamecolor,
+                              child: const Icon(
+                                Icons.swap_vert,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 15),
+                    // Date Picker
+                    InkWell(
+                      onTap: () async {
+                        DateTime? pickdate = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2050),
+                        );
+                        if (pickdate != null) {
+                          setState(() {
+                            viewdate =
+                                "  ${DateFormat('yMMMEd').format(pickdate)}";
+                            showdate = "${DateFormat('yMd').format(pickdate)}";
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 15,
+                          vertical: 15,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.white54),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_month,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              viewdate ?? "Select Date",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Search Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          elevation: 5,
+                        ),
+                        onPressed: () async {
+                          if (formkey.currentState!.validate() ||
+                              (updepotsearchController.text.isNotEmpty &&
+                                  downdepotsearchController.text.isNotEmpty)) {
+                            // Validation logic manually since we are using Autocomplete which is tricky with Form
+                            // Using text check primarily
+                            sp = await SharedPreferences.getInstance();
+                            sp.setString(
+                              'pickuppoint',
+                              updepotsearchController.text,
+                            );
+                            sp.setString(
+                              'destination',
+                              downdepotsearchController.text,
+                            );
+
+                            setState(() {});
+
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) => const buslistpage(),
+                              ),
+                            );
+                          } else {
+                            Fluttertoast.showToast(
+                              msg: "Please select both locations",
+                            );
+                          }
+                        },
+                        child: Text(
+                          'SEARCH BUSES',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: C.theamecolor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 25),
 
-              // 3. QUICK ACTIONS
+              // 2. Quick Actions Greeting
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
@@ -460,20 +481,21 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blueGrey[900],
+                    color: Colors.grey[800],
                   ),
                 ),
               ),
               const SizedBox(height: 15),
+
+              // 3. Grid of Actions
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildQuickActionCard(
-                      icon: Icons.confirmation_number_rounded,
+                      icon: Icons.confirmation_number_outlined,
                       label: "My Tickets",
-                      color: Colors.blueAccent,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -484,9 +506,8 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                       },
                     ),
                     _buildQuickActionCard(
-                      icon: Icons.person_rounded,
+                      icon: Icons.person_outline,
                       label: "Profile",
-                      color: Colors.deepPurpleAccent,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -497,9 +518,8 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                       },
                     ),
                     _buildQuickActionCard(
-                      icon: Icons.headset_mic_rounded,
+                      icon: Icons.support_agent,
                       label: "Support",
-                      color: Colors.teal,
                       onTap: () {
                         Fluttertoast.showToast(msg: "Support coming soon!");
                       },
@@ -510,41 +530,29 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
 
               const SizedBox(height: 25),
 
-              // 4. PROMO SECTION
+              // 4. Promo Banner (Carousel)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Special Offers",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blueGrey[900],
-                      ),
-                    ),
-                    Text(
-                      "See All",
-                      style: TextStyle(
-                        color: C.theamecolor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  "Special Offers",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey[800],
+                  ),
                 ),
               ),
               const SizedBox(height: 15),
               SizedBox(
-                height: 140,
+                height: 150,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.only(left: 20, right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   itemCount: imageList.length,
                   itemBuilder: (context, index) {
                     return Container(
-                      width: 260,
-                      margin: const EdgeInsets.only(right: 15, bottom: 10),
+                      width: 280,
+                      margin: const EdgeInsets.only(right: 15),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
                         image: DecorationImage(
@@ -553,9 +561,9 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 5,
+                            offset: const Offset(0, 3),
                           ),
                         ],
                       ),
@@ -563,7 +571,7 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                   },
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 50),
             ],
           ),
         ),
@@ -571,91 +579,25 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
     );
   }
 
-  // 5. HELPER WIDGETS
-  Widget _buildLocationInput({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required bool isUp,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Autocomplete(
-        key: isUp ? keyUp : keyDown,
-        initialValue: TextEditingValue(text: controller.text),
-        optionsBuilder: (TextEditingValue textEditingValue) {
-          if (textEditingValue.text == '') {
-            return Iterable<String>.empty();
-          }
-          return Depotlist.where((String item) {
-            return item.toLowerCase().contains(
-              textEditingValue.text.toLowerCase(),
-            );
-          });
-        },
-        onSelected: (String item) {
-          controller.text = item;
-        },
-        fieldViewBuilder:
-            (context, fieldController, focusNode, onEditingComplete) {
-              // Sync logic
-              if (fieldController.text != controller.text) {
-                fieldController.text = controller.text;
-              }
-              if (isUp) {
-                updepotsearchController = fieldController;
-              } else {
-                downdepotsearchController = fieldController;
-              }
-
-              return TextField(
-                controller: fieldController,
-                focusNode: focusNode,
-                onEditingComplete: onEditingComplete,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                decoration: InputDecoration(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: C.theamecolor, size: 20),
-                  ),
-                  hintText: hint,
-                  hintStyle: TextStyle(color: Colors.grey[400]),
-                  border: InputBorder.none,
-                ),
-              );
-            },
-      ),
-    );
-  }
-
   Widget _buildQuickActionCard({
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -664,19 +606,15 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: C.theamecolor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 26),
+              child: Icon(icon, color: C.theamecolor, size: 28),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-                color: Colors.grey[800],
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ],
         ),
