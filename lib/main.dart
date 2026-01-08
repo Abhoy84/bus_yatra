@@ -1,9 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:ticketbooking/pages/splashscreen.dart';
+import 'package:ticketbooking/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(MaterialApp(home: Splashscreen(), debugShowCheckedModeBanner: false));
+  await NotificationService().init();
+  runApp(
+    const MaterialApp(home: Splashscreen(), debugShowCheckedModeBanner: false),
+  );
 }

@@ -27,7 +27,6 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
   homepageState(this.user);
   static User? pass;
   late SharedPreferences sp;
-  GlobalKey<FormState> formkey = GlobalKey();
   List imageList = [
     {"id": 1, "image_path": 'asset/image/p1.png'},
     {"id": 2, "image_path": 'asset/image/p2.jpg'},
@@ -429,9 +428,8 @@ class homepageState extends State<homepage> with TickerProviderStateMixin {
                           elevation: 5,
                         ),
                         onPressed: () async {
-                          if (formkey.currentState!.validate() ||
-                              (updepotsearchController.text.isNotEmpty &&
-                                  downdepotsearchController.text.isNotEmpty)) {
+                          if (updepotsearchController.text.isNotEmpty &&
+                              downdepotsearchController.text.isNotEmpty) {
                             // Validation logic manually since we are using Autocomplete which is tricky with Form
                             // Using text check primarily
                             sp = await SharedPreferences.getInstance();

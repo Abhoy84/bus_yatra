@@ -6,6 +6,7 @@ import 'package:ticketbooking/models/Ticketmodel.dart';
 import 'package:ticketbooking/models/usermodel.dart';
 import 'package:ticketbooking/pages/dottedborder.dart';
 import 'package:ticketbooking/pages/loadingdialoge.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 import 'package:ticketbooking/pages/firstticket.dart';
 import 'package:ticketbooking/pages/color.dart';
@@ -239,6 +240,8 @@ class bookedticketlistState extends State<bookedticketlist> {
                       return input.isNotEmpty ? input.split(' ').first : '';
                     }
 
+                    bool isCancelled = tickets[index].status == 'cancelled';
+
                     return InkWell(
                       onTap: () {
                         Navigator.of(context).push(
@@ -275,7 +278,9 @@ class bookedticketlistState extends State<bookedticketlist> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: C.theamecolor.withOpacity(0.1),
+                                color: isCancelled
+                                    ? Colors.red.withOpacity(0.1)
+                                    : C.theamecolor.withOpacity(0.1),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(16),
                                   topRight: Radius.circular(16),
@@ -288,7 +293,9 @@ class bookedticketlistState extends State<bookedticketlist> {
                                   Text(
                                     tickets[index].busname.toUpperCase(),
                                     style: TextStyle(
-                                      color: C.theamecolor,
+                                      color: isCancelled
+                                          ? Colors.red
+                                          : C.theamecolor,
                                       fontWeight: FontWeight.bold,
                                       fontSize: 12,
                                     ),
@@ -299,12 +306,14 @@ class bookedticketlistState extends State<bookedticketlist> {
                                       vertical: 4,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: C.theamecolor,
+                                      color: isCancelled
+                                          ? Colors.red
+                                          : C.theamecolor,
                                       borderRadius: BorderRadius.circular(4),
                                     ),
-                                    child: const Text(
-                                      "Confirmed",
-                                      style: TextStyle(
+                                    child: Text(
+                                      isCancelled ? "Cancelled" : "Confirmed",
+                                      style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
@@ -490,6 +499,32 @@ class bookedticketlistState extends State<bookedticketlist> {
                                       ),
                                     ],
                                   ),
+                                  // Cancel Button
+                                  if (!isCancelled) ...[
+                                    const SizedBox(height: 15),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: () {
+                                          _handleCancellation(tickets[index]);
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red,
+                                          side: const BorderSide(
+                                            color: Colors.red,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          "Cancel Booking & Refund",
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -507,5 +542,139 @@ class bookedticketlistState extends State<bookedticketlist> {
   Future getdata() async {
     sp = await SharedPreferences.getInstance();
     uid = sp.getString('uid') ?? '';
+  }
+
+  void _handleCancellation(Ticket ticket) {
+    try {
+      // 1. Parsing Logic
+      // Trying to parse standard formats.
+      // Date likely in 'M/d/yyyy' or 'yyyy-MM-dd' from DatePicker/Firestore
+      // Time likely in 'h:mm a' (e.g., 5:30 PM) or 'HH:mm'
+
+      // We'll try to find a best fit.
+      // Based on showdate = DateFormat('yMd').format(pickdate) -> e.g. 1/8/2026
+
+      DateFormat dateFormat = DateFormat('M/d/yyyy');
+      // If your app uses a differnt locale or format, this might need adjustment.
+      // Falling back to a flexible parser could be safer but 'yMd' is standard.
+
+      // However, Firestore date string might differ. Let's try parsing.
+      DateTime datePart;
+      try {
+        datePart = dateFormat.parse(ticket.date);
+      } catch (e) {
+        // Fallback or try another format
+        try {
+          datePart = DateFormat('yyyy-MM-dd').parse(ticket.date);
+        } catch (e2) {
+          datePart = DateFormat('d/M/yyyy').parse(ticket.date);
+        }
+      }
+
+      // Time Parsing
+      // Assuming '5:30 PM' format
+      DateFormat timeFormat = DateFormat.jm(); // 5:30 PM
+      DateTime timePart;
+      try {
+        timePart = timeFormat.parse(ticket.time);
+      } catch (e) {
+        // Fallback to HH:mm
+        timePart = DateFormat('HH:mm').parse(ticket.time);
+      }
+
+      // Combine parts
+      DateTime departureTime = DateTime(
+        datePart.year,
+        datePart.month,
+        datePart.day,
+        timePart.hour,
+        timePart.minute,
+      );
+
+      // 2. Business Logic: Check 2 hours
+      DateTime now = DateTime.now();
+      Duration diff = departureTime.difference(now);
+
+      if (diff.inHours < 2) {
+        Fluttertoast.showToast(
+          msg: "Cancellation is only allowed 2 hours before departure.",
+        );
+        return;
+      }
+
+      // 3. UI: Reason Dialog
+      TextEditingController reasonController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Cancel Booking"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Are you sure you want to cancel? Refund will be processed to your original payment method.",
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: "Reason for cancellation",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (reasonController.text.isEmpty) {
+                    Fluttertoast.showToast(msg: "Please provide a reason");
+                    return;
+                  }
+                  Navigator.pop(context); // Close dialog
+                  _processCancellation(ticket.id, reasonController.text);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text("Confirm Cancel"),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error verifying time: ${e.toString()}");
+      // Fallback for demo or safety: allow cancel if parse fails? No, better safe.
+    }
+  }
+
+  Future<void> _processCancellation(String ticketId, String reason) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const LoadingDialog(),
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(ticketId)
+          .update({
+            'status': 'cancelled',
+            'refundStatus': 'pending',
+            'cancellationReason': reason,
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+
+      Navigator.pop(context); // Close Loading
+      Fluttertoast.showToast(msg: "Ticket cancelled. Refund request sent.");
+    } catch (e) {
+      Navigator.pop(context);
+      Fluttertoast.showToast(msg: "Failed to cancel: ${e.toString()}");
+    }
   }
 }

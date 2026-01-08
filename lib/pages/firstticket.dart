@@ -12,6 +12,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ticketbooking/pages/loadingdialoge.dart';
 import 'package:ticketbooking/models/usermodel.dart' as model;
 import 'package:ticketbooking/pages/homepage.dart';
 
@@ -57,12 +58,14 @@ class ticketafterState extends State<ticketafter> {
 
   @override
   Widget build(BuildContext context) {
+    bool isCancelled = status == 'cancelled';
+    Color statusColor = isCancelled ? Colors.red : Colors.green;
+    String statusText = isCancelled ? "Cancelled" : "Confirmed";
+    IconData statusIcon = isCancelled ? Icons.cancel : Icons.check_circle;
+
     return WillPopScope(
       onWillPop: () async {
         if (widget.isFromBooking) {
-          // If from booking, we want to reset to home to avoid back-stack confusion
-          // However, blocking back button might be annoying.
-          // Let's call our safe navigation.
           _navigateToHome();
         } else {
           Navigator.pop(context);
@@ -85,7 +88,7 @@ class ticketafterState extends State<ticketafter> {
           ),
           backgroundColor: C.theamecolor,
           title: Text(
-            "Booking Confirmed",
+            isCancelled ? "Booking Cancelled" : "Booking Confirmed",
             style: TextStyle(color: C.textfromcolor),
           ),
           centerTitle: true,
@@ -97,8 +100,40 @@ class ticketafterState extends State<ticketafter> {
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     children: [
-                      _buildTicketCard(),
+                      _buildTicketCard(
+                        isCancelled,
+                        statusColor,
+                        statusText,
+                        statusIcon,
+                      ),
                       const SizedBox(height: 30),
+
+                      // Cancel Button (Only if confirmed)
+                      if (!isCancelled) ...[
+                        OutlinedButton(
+                          onPressed: _handleCancellation,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            fixedSize: Size(
+                              MediaQuery.of(context).size.width * 0.8,
+                              50,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: const Text(
+                            "Cancel Booking",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                      ],
+
                       ElevatedButton(
                         onPressed: () {
                           _navigateToHome();
@@ -153,7 +188,12 @@ class ticketafterState extends State<ticketafter> {
     );
   }
 
-  Widget _buildTicketCard() {
+  Widget _buildTicketCard(
+    bool isCancelled,
+    Color statusColor,
+    String statusText,
+    IconData statusIcon,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -172,7 +212,7 @@ class ticketafterState extends State<ticketafter> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: C.theamecolor,
+              color: isCancelled ? Colors.red : C.theamecolor,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
               ),
@@ -183,7 +223,7 @@ class ticketafterState extends State<ticketafter> {
                 Text(
                   "TICKET",
                   style: TextStyle(
-                    color: C.textfromcolor,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
                   ),
@@ -191,7 +231,7 @@ class ticketafterState extends State<ticketafter> {
                 Text(
                   "ID: $id",
                   style: TextStyle(
-                    color: C.textfromcolor,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -211,7 +251,7 @@ class ticketafterState extends State<ticketafter> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: C.theamecolor,
+                      color: isCancelled ? Colors.red : C.theamecolor,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -241,7 +281,11 @@ class ticketafterState extends State<ticketafter> {
                         ),
                       ],
                     ),
-                    Icon(Icons.directions_bus, color: C.theamecolor, size: 30),
+                    Icon(
+                      Icons.directions_bus,
+                      color: isCancelled ? Colors.red : C.theamecolor,
+                      size: 30,
+                    ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -298,22 +342,18 @@ class ticketafterState extends State<ticketafter> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green[50],
+                        color: statusColor.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.green),
+                        border: Border.all(color: statusColor),
                       ),
                       child: Row(
-                        children: const [
-                          Icon(
-                            Icons.check_circle,
-                            size: 16,
-                            color: Colors.green,
-                          ),
-                          SizedBox(width: 4),
+                        children: [
+                          Icon(statusIcon, size: 16, color: statusColor),
+                          const SizedBox(width: 4),
                           Text(
-                            "Confirmed",
+                            statusText,
                             style: TextStyle(
-                              color: Colors.green,
+                              color: statusColor,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -341,50 +381,51 @@ class ticketafterState extends State<ticketafter> {
                 const SizedBox(height: 20),
                 const Divider(),
                 // Verify / QR Section
-                Center(
-                  child: Column(
-                    children: [
-                      TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            showQr = !showQr;
-                          });
-                        },
-                        icon: Icon(
-                          showQr
-                              ? Icons.keyboard_arrow_up
-                              : Icons.qr_code_scanner,
-                          color: C.theamecolor,
-                        ),
-                        label: Text(
-                          showQr ? "Hide QR Code" : "Verify Ticket",
-                          style: TextStyle(
+                if (!isCancelled) // Hide QR if cancelled
+                  Center(
+                    child: Column(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              showQr = !showQr;
+                            });
+                          },
+                          icon: Icon(
+                            showQr
+                                ? Icons.keyboard_arrow_up
+                                : Icons.qr_code_scanner,
                             color: C.theamecolor,
-                            fontWeight: FontWeight.bold,
+                          ),
+                          label: Text(
+                            showQr ? "Hide QR Code" : "Verify Ticket",
+                            style: TextStyle(
+                              color: C.theamecolor,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: showQr ? 200 : 0,
-                        curve: Curves.easeInOut,
-                        child: SingleChildScrollView(
-                          child: showQr && id.isNotEmpty
-                              ? Padding(
-                                  padding: const EdgeInsets.only(top: 10),
-                                  child: QrImageView(
-                                    data: id,
-                                    version: QrVersions.auto,
-                                    size: 180.0,
-                                    foregroundColor: C.theamecolor,
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: showQr ? 200 : 0,
+                          curve: Curves.easeInOut,
+                          child: SingleChildScrollView(
+                            child: showQr && id.isNotEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: QrImageView(
+                                      data: id,
+                                      version: QrVersions.auto,
+                                      size: 180.0,
+                                      foregroundColor: C.theamecolor,
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -458,14 +499,133 @@ class ticketafterState extends State<ticketafter> {
         List seats = data['seatLabels'] ?? [];
         seat = seats.join(', ');
 
-        status = data['status'] ?? '';
+        status = data['status'] ?? ''; // Dynamic status from Firestore
 
-        Fluttertoast.showToast(msg: "Ticket Loaded Successfully");
+        // Fluttertoast.showToast(msg: "Ticket Loaded Successfully");
       } else {
         Fluttertoast.showToast(msg: "Ticket Not Found");
       }
     } catch (e) {
       Fluttertoast.showToast(msg: "Error loading ticket: $e");
+    }
+  }
+
+  void _handleCancellation() {
+    try {
+      DateFormat dateFormat = DateFormat('M/d/yyyy');
+      DateTime datePart;
+      try {
+        datePart = dateFormat.parse(date);
+      } catch (e) {
+        try {
+          datePart = DateFormat('yyyy-MM-dd').parse(date);
+        } catch (e2) {
+          datePart = DateFormat('d/M/yyyy').parse(date);
+        }
+      }
+
+      DateFormat timeFormat = DateFormat.jm();
+      DateTime timePart;
+      try {
+        timePart = timeFormat.parse(time);
+      } catch (e) {
+        timePart = DateFormat('HH:mm').parse(time);
+      }
+
+      DateTime departureTime = DateTime(
+        datePart.year,
+        datePart.month,
+        datePart.day,
+        timePart.hour,
+        timePart.minute,
+      );
+
+      DateTime now = DateTime.now();
+      Duration diff = departureTime.difference(now);
+
+      if (diff.inHours < 2) {
+        Fluttertoast.showToast(
+          msg: "Cancellation is only allowed 2 hours before departure.",
+        );
+        return;
+      }
+
+      TextEditingController reasonController = TextEditingController();
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Cancel Booking"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "Are you sure you want to cancel? Refund will be processed to your original payment method.",
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: "Reason for cancellation",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Close"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (reasonController.text.isEmpty) {
+                    Fluttertoast.showToast(msg: "Please provide a reason");
+                    return;
+                  }
+                  Navigator.pop(context);
+                  _processCancellation(id, reasonController.text);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text("Confirm Cancel"),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error verifying time: ${e.toString()}");
+    }
+  }
+
+  Future<void> _processCancellation(String ticketId, String reason) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const LoadingDialog(),
+    );
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(ticketId)
+          .update({
+            'status': 'cancelled',
+            'refundStatus': 'pending',
+            'cancellationReason': reason,
+            'cancelledAt': FieldValue.serverTimestamp(),
+          });
+
+      // Refresh data
+      await getTicketDetails(ticketId);
+
+      Navigator.pop(context); // Close Loading
+      setState(() {});
+
+      Fluttertoast.showToast(msg: "Ticket cancelled. Refund request sent.");
+    } catch (e) {
+      Navigator.pop(context);
+      Fluttertoast.showToast(msg: "Failed to cancel: ${e.toString()}");
     }
   }
 
@@ -487,34 +647,34 @@ class ticketafterState extends State<ticketafter> {
         if (userDoc.exists) {
           Map<String, dynamic> data = userDoc.data() as Map<String, dynamic>;
           model.User user = model.User(
-            fname: data['name'] ?? '', // Assuming 'name' field based on context
+            fname: data['name'] ?? '',
             email: currentUser.email ?? '',
             uid: currentUser.uid,
             phone: data['phone'] ?? '',
             image: data['image'] ?? '',
           );
 
-          Navigator.of(context).pop(); // Dismiss loading
+          Navigator.of(context).pop();
 
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (context) => homepage(user)),
             (route) => false,
           );
         } else {
-          Navigator.of(context).pop(); // Dismiss loading
+          Navigator.of(context).pop();
           Fluttertoast.showToast(msg: "User not found");
-          // Fallback
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       }
     } catch (e) {
-      Navigator.of(context).pop(); // Dismiss loading
+      Navigator.of(context).pop();
       Fluttertoast.showToast(msg: "Navigation Error: $e");
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
   Future<void> _printPdf() async {
+    bool isCancelled = status == 'cancelled';
     final doc = pw.Document();
     // ... existing _printPdf content ...
 
@@ -686,22 +846,36 @@ class ticketafterState extends State<ticketafter> {
                   ),
                   pw.SizedBox(height: 20),
                   pw.Divider(),
-                  pw.SizedBox(height: 20),
-                  pw.BarcodeWidget(
-                    barcode: pw.Barcode.qrCode(),
-                    data: id,
-                    width: 100,
-                    height: 100,
-                  ),
-                  pw.SizedBox(height: 10),
-                  pw.SizedBox(height: 10),
-                  pw.Text(
-                    "Show this QR code to conductor",
-                    style: const pw.TextStyle(
-                      fontSize: 10,
-                      color: PdfColors.grey,
+                  if (!isCancelled) // Hide QR in PDF if cancelled? Optional.
+                  ...[
+                    pw.SizedBox(height: 20),
+                    pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: id,
+                      width: 100,
+                      height: 100,
                     ),
-                  ),
+                    pw.SizedBox(height: 10),
+                    pw.SizedBox(height: 10),
+                    pw.Text(
+                      "Show this QR code to conductor",
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey,
+                      ),
+                    ),
+                  ],
+
+                  if (isCancelled)
+                    pw.Text(
+                      "CANCELLED TICKET",
+                      style: pw.TextStyle(
+                        color: PdfColors.red,
+                        fontWeight: pw.FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+
                   pw.SizedBox(height: 20),
                   pw.Container(
                     width: double.infinity,

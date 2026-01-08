@@ -10,6 +10,7 @@ import 'package:ticketbooking/pages/homepage.dart';
 import 'package:ticketbooking/pages/loadingdialog.dart';
 import 'package:ticketbooking/pages/loadingdialoge.dart';
 import 'package:ticketbooking/pages/seatselection.dart';
+import 'package:ticketbooking/services/notification_service.dart';
 
 class ticketcreator extends StatefulWidget {
   const ticketcreator({super.key});
@@ -122,6 +123,12 @@ class _ticketcreatorState extends State<ticketcreator> {
           .collection('bookings')
           .doc(orderid)
           .update({'status': 'confirmed'});
+
+      // Trigger Notification
+      await NotificationService().showLocalNotification(
+        "Booking Confirmed!",
+        "Your ticket has been successfully booked. Have a safe journey!",
+      );
 
       Navigator.pop(context); // Close loading
 
